@@ -22,7 +22,9 @@ Do NOT set this globally; only bind dynamically.")
      (let* ((*id* (generate-id))
             (page ,(cons block (cons nil body))))
        ;; Do whatever needs to be done with responses and replies
-       (setf (gethash (or *socket *id*) clients) (list *request* page))
+       (when (null *socket*)
+         (setf (gethash *id* *clients*)
+               (list *request* (strip (parse page)))))
        (setq *out-reply* *reply*)
        page)))
 
