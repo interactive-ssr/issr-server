@@ -11,7 +11,7 @@
 (defun update-reply (socket-or-id reply) )
 
 (defvar *socket* nil
-  "The current socket being used. 
+  "The current socket being used.
 Do NOT set this globally; only bind dymaically.")
 (defvar *first-time* t
   "T if it is the first time a connection is being made.
@@ -33,7 +33,7 @@ Do NOT set this globally; only bind dynamically.")
 Before connecting by websocket, the key is the  identifier.")
 
 (defvar *out-reply* nil
-  "The reply for the websocket. 
+  "The reply for the websocket.
 Do NOT set globally; only bind dynamically.")
 
 (defmacro nlet (name bindings &body body)
