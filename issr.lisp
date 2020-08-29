@@ -85,10 +85,10 @@ Do NOT set globally; only bind dynamically.")
             (when session-data
               (push (list (cons "session" (slot-value *session* 'session-data)))
                     instructions)))
-                    instructions)))
-          (when (string= "{" new-page)
-            (push)))))
-        ())
+          (if (listp new-page)
+              ;; redirect
+              (push new-page instructions)
+              ;; dom instructions
               (setq instructions
                     (append (tree-diff (strip (parse (gethash *socket* *clients*))) new-page)
                             instructions))))
