@@ -28,7 +28,7 @@ Do NOT set this globally; only bind dynamically.")
        (setq *out-reply* *reply*)
        page)))
 
-(defvar clients (make-hash-table)
+(defvar *clients* (make-hash-table)
   "Key: socket, Value: (list *request* page).
 Before connecting by websocket, the key is the  identifier.")
 
@@ -48,11 +48,11 @@ Do NOT set globally; only bind dynamically.")
   ;; first connection
   (when (string= "id:" (subseq message 0 3))
     (let* ((id (subseq message 3))
-           (info (gethash id *client-info* nil)))
+           (info (gethash id *clients* nil)))
       (if info
           (progn
-            (setf (gethash socket *client-info*) info)
-            (remhash id *client-info*))
+            (setf (gethash socket *clients*) info)
+            (remhash id *clients*))
           (progn
             (warn (format nil "Uhhhhm, id \"~a\" doesn't exist." id))
             (return-from socket-handler)))))
@@ -60,7 +60,7 @@ Do NOT set globally; only bind dynamically.")
   (when (string= "?" (subseq message 0 1))
     (let* ((*socket* socket)
            (*first-time* nil)
-           (info (gethash socket *client-info*))
+           (info (gethash socket *clients*))
            (*request* (car info))
            (*session* (slot-value *request* 'session))
            (*out-reply* nil)
@@ -93,7 +93,7 @@ Do NOT set globally; only bind dynamically.")
     (on :message socket socket-handler)
     (on :close socket
         (lambda (&key code reason) (declare (ignore code reason))
-          (remhash socket *client-info*)))
+          (remhash socket *clients*)))
     (lambda (responder) (declare (ignore responder))
       (start-connection socket))))
 
