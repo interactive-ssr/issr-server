@@ -90,7 +90,7 @@ Do NOT set globally; only bind dynamically.")
 
 (defun socket-server-handler (env)
   (let ((socket (make-server env)))
-    (on :message socket socket-handler)
+    (on :message socket #'socket-handler)
     (on :close socket
         (lambda (&key code reason) (declare (ignore code reason))
           (remhash socket *clients*)))
