@@ -70,7 +70,8 @@ Do NOT set globally; only bind dynamically.")
       (hunchentoot:recompute-request-parameters :request *request*)
       (let ((new-page (funcall (hunchentoot:dispatch-easy-handlers *request*)))
             (instructions (list)))
-        (when (*out-reply* (slot-value *out-reply* 'return-code))
+        (when (and *out-reply* (= 200 (slot-value *out-reply* 'return-code)))
+          ;; cookies
           (with-slots (cookies-out) *out-reply*
             (when cookies-out
               (setf (slot-value *request* 'cookies-in)
@@ -79,6 +80,7 @@ Do NOT set globally; only bind dynamically.")
                                     (slot-value (cdr cookie) 'value)))))
               (push (list (cons "cookie" (hunchentoot::stringify-cookie cookies-out)))
                     instructions)))
+          ;; session
           (with-slots (session-data) *session*
             (when session-data
               (push (list (cons "session" (slot-value *session* 'session-data)))
