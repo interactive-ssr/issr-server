@@ -33,6 +33,15 @@ Before connecting by websocket, the key is the  identifier.")
 (defvar *out-reply* nil
   "The reply for the websocket. 
 Do NOT set globally; only bind dynamically.")
+
+(defmacro nlet (name bindings &body body)
+  `(labels ((,name ,(mapcar #'first bindings) ,@body))
+     (,name ,@(mapcar #'second bindings))))
+
+(defun hash-keys (hash-table)
+  (loop :for key :being :the :hash-keys :of hash-table
+        :collect key))
+
 (defun socket-handler (message)
   ;; first connection
   (when (string= "id:" (subseq message 0 3))
