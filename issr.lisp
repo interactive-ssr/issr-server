@@ -75,18 +75,22 @@ Do NOT set globally; only bind dynamically.")
             (when cookies-out
               (setf (slot-value *request* 'cookies-in)
                     (mapcar (lambda (cookie)
-                        (cons (car cookie)
-                              (slot-value (cdr cookie) 'value)))))
-              (push (cons :cookie (hunchentoot::stringify-cookie cookies-out))
+                              (cons (car cookie)
+                                    (slot-value (cdr cookie) 'value)))))
+              (push (list (cons "cookie" (hunchentoot::stringify-cookie cookies-out)))
                     instructions)))
           (with-slots (session-data) *session*
             (when session-data
-              (push (cons :session (slot-value *session* 'session-data))
+              (push (list (cons "session" (slot-value *session* 'session-data)))
+                    instructions)))
                     instructions)))
           (when (string= "{" new-page)
             (push)))))
         ())
-      (send socket (jojo:to-json '(:params message))))
+              (setq instructions
+                    (append (tree-diff (strip (parse (gethash *socket* *clients*))) new-page)
+                            instructions))))
+        (send socket (jojo:to-json instructions :from :alist))))))
 
 (defun socket-server-handler (env)
   (let ((socket (make-server env)))
@@ -120,7 +124,7 @@ Do NOT set globally; only bind dynamically.")
   (list (hunchentoot:stop (car servers))
         (cadr servers)))
 
-(defmacro redirect (target &key (socket *socket*))
-  `(if socket
-       (return (:redirect ,target))
+(defmacro redirect (target)
+  `(if *socket*
+       (return (list (cons :redirect ,target)))
        (hunchentoot:redirect ,target)))
