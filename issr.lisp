@@ -133,5 +133,5 @@ Before connecting by websocket, the key is the identifier.")
 
 (defmacro redirect (target)
   `(if *socket*
-       (return (list (cons :redirect ,target)))
-       (hunchentoot:redirect ,target)))
+       (return (list "redirect" ,target)
+       (hunchentoot:redirect ,target))))
