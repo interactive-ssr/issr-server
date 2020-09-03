@@ -37,7 +37,53 @@ Before connecting by websocket, the key is the identifier.")
   (loop :for key :being :the :hash-keys :of hash-table
         :collect key))
 
-(defun socket-handler (message)
+(defun rr (socket &optional (parameters "?"))
+  "Send a Re-Render to SOCKET with query string PARAMETERS."
+  (let* ((*socket* socket)
+         (*first-time* nil)
+         (info (gethash socket *clients*))
+         (hunchentoot:*request* (car info))
+         (hunchentoot:*request* (hunchentoot:session hunchentoot:*request*))
+         (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
+         (handler (hunchentoot:dispatch-easy-handlers hunchentoot:*request*))
+         (previous-page (cadr info)))
+    ;; update query string for request
+    (setf (slot-value hunchentoot:*request* 'hunchentoot:query-string) (subseq parameters 1))
+    (hunchentoot:recompute-request-parameters :request hunchentoot:*request*)
+    ;; generate page and instructions
+    (let ((new-page (funcall handler))
+          (instructions (list)))
+      (when (= 200 (hunchentoot:return-code hunchentoot:*reply*))
+        ;; cookies
+        (with-slots (hunchentoot:cookies-out) hunchentoot:*reply*
+          (when hunchentoot:cookies-out
+            (setf (slot-value hunchentoot:*request* 'hunchentoot:cookies-in)
+                  (mapcar (lambda (cookie)
+                            (cons (car cookie)
+                                  (slot-value (cdr cookie) 'hunchentoot::value)))
+                          hunchentoot:cookies-out))
+            (push (cons "cookie" (mapcar (lambda (cookie)
+                                           (hunchentoot::stringify-cookie (cdr cookie)))
+                                         hunchentoot:cookies-out))
+                  instructions)))
+        ;; session
+        (when hunchentoot:*session*
+          (with-slots (hunchentoot::session-data) hunchentoot:*session*
+            (when hunchentoot::session-data
+              (push (cons "session" (mapcar (lambda (data) (list (car data) (cdr data)))
+                                            hunchentoot::session-data))
+                    instructions))))
+        (if (listp new-page)
+            ;; redirect or some other custom instruction
+            (push new-page instructions)
+            ;; dom instructions
+            (setq instructions
+                  (append (diff-dom previous-page
+                                    (strip (parse new-page)))
+                          instructions))))
+      (send socket (jojo:to-json instructions)))))
+
+(defun socket-handler (socket message)
   ;; first connection
   (when (string= "id:" (subseq message 0 3))
     (let* ((id (subseq message 3))
@@ -51,45 +97,11 @@ Before connecting by websocket, the key is the identifier.")
             (return-from socket-handler)))))
   ;; giving parameters to update page
   (when (string= "?" (subseq message 0 1))
-    (let* ((*socket* socket)
-           (*first-time* nil)
-           (info (gethash socket *clients*))
-           (*request* (car info))
-           (*session* (slot-value *request* 'session))
-           (*out-reply* nil)
-           (handler (hunchentoot:dispatch-easy-handlers *request))
-           (previous-page (cadr info)))
-      (setf (slot-value request 'query-string) (subseq message 1))
-      (hunchentoot:recompute-request-parameters :request *request*)
-      (let ((new-page (funcall (hunchentoot:dispatch-easy-handlers *request*)))
-            (instructions (list)))
-        (when (and *out-reply* (= 200 (slot-value *out-reply* 'return-code)))
-          ;; cookies
-          (with-slots (cookies-out) *out-reply*
-            (when cookies-out
-              (setf (slot-value *request* 'cookies-in)
-                    (mapcar (lambda (cookie)
-                              (cons (car cookie)
-                                    (slot-value (cdr cookie) 'value)))))
-              (push (list (cons "cookie" (hunchentoot::stringify-cookie cookies-out)))
-                    instructions)))
-          ;; session
-          (with-slots (session-data) *session*
-            (when session-data
-              (push (list (cons "session" (slot-value *session* 'session-data)))
-                    instructions)))
-          (if (listp new-page)
-              ;; redirect
-              (push new-page instructions)
-              ;; dom instructions
-              (setq instructions
-                    (append (tree-diff (strip (parse (gethash *socket* *clients*))) new-page)
-                            instructions))))
-        (send socket (jojo:to-json instructions :from :alist))))))
+    (rr socket message)))
 
 (defun socket-server-handler (env)
   (let ((socket (make-server env)))
-    (on :message socket #'socket-handler)
+    (on :message socket (lambda (message) (socket-handler socket message)))
     (on :close socket
         (lambda (&key code reason) (declare (ignore code reason))
           (remhash socket *clients*)))
