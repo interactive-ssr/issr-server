@@ -46,6 +46,108 @@ INDEXES is a list of locations of the children list of NODE."
        (aref (children node) (car indexes))
        (cdr indexes))))
 
+(defun diff-dom (old-dom new-dom
+                 &optional (index 0) indexes instructions)
+  "Return a list of instructions to update the dom of OLD to look like NEW.
+OLD and NEW should both be plump virtual doms.
+Possible instructions:
+(\"delete\" (indexes)): .outerHTML = \"\";
+(\"insert\" (indexes) position html-string): create nil node; .prepend(node), .before(node), or .after(node); node.outerHTML = html-string;
+(\"mod\" (indexes) (attr-name attr-value)...): .setAttribute(attr-name, attr-value);
+Does not preserve old-dom.
+
+INDEXES: Reversed list of indexes to reach the current parent.
+INDEX: (aref (children parent) INDEX) to get current node."
+  (let ((old-tree (descendant old-dom (reverse indexes)))
+        (new-tree (descendant new-dom (reverse indexes))))
+    (cond
+      ;; base case: no more tree to traverse
+      ((and (null indexes) (>= index (length (children new-tree))))
+       instructions)
+      ;; move to next sibling of parent with no instructions
+      ((and (>= index (length (children old-tree)))
+                (>= index (length (children new-tree))))
+       (diff-dom old-dom new-dom (+ (car indexes) 1)
+                 (cdr indexes) instructions))
+      ;; insert rest of children from new
+      ((>= index (length (children old-tree)))
+       (let* ((children (children new-tree))
+              (length-children (length children))
+              (insert-instructions
+                (loop for i from index to (- length-children 1)
+                      collect
+                      (list "insert"
+                            (reverse (if (= i 0) indexes (cons i indexes)))
+                            (if (= i 0) "prepend" "after")
+                            (serialize (aref children i) nil)))))
+         (diff-dom old-dom new-dom length-children indexes
+                   (append instructions insert-instructions))))
+      ;; remove rest of children from old
+      ((>= index (length (children new-tree)))
+       (let* ((length-children (length (children old-tree)))
+              (delete-instructions
+                (loop for i from (- length-children 1) downto index
+                      with node = (descendant old-tree (list index))
+                      if (if (element-p node)
+                             (gethash "noupdate" (attributes node) t)
+                             t)
+                        collect (cons "delete" (reverse (cons index indexes))))))
+         (diff-dom old-dom new-dom length-children indexes
+                   (append instructions delete-instructions))))
+      ;;; start comparing the current node
+      ;; move to the next sibling with no instructions
+      ((or (doctype-p (descendant old-tree (list index)))
+           (and (element-p (descendant old-tree (list index)))
+                (gethash "noupdate" (attributes (descendant old-tree (list index))) nil)))
+       (diff-dom old-dom new-dom (+ index 1) indexes instructions))
+      ;; update text if current node is a text node
+      ((text-node-p (descendant old-tree (list index)))
+       (diff-dom old-dom new-dom (+ index 1) indexes
+                 (let ((old-node (descendant old-tree (list index)))
+                       (new-node (descendant new-tree (list index))))
+                   (if (and (text-node-p new-node)
+                          (string= (text old-node)
+                                   (text new-node)))
+                     instructions
+                     (progn
+                       (insert-before old-node nil)   ;add a nil to shift the node array
+                       (append instructions
+                               (list (list "insert" (reverse (cons index indexes)) "before"
+                                                            (text new-node)))))))))
+      ;; insert new before
+      ((let ((old-node (descendant old-tree (list index)))
+             (new-node (descendant new-tree (list index))))
+         (or (not (eq (type-of old-node) (type-of new-node)))
+             (string/= (if (element-p old-node) (tag-name old-node) "")
+                       (if (element-p new-node) (tag-name new-node) ""))
+             (string/= (gethash "id" (attributes old-node) "")
+                       (gethash "id" (attributes new-node) ""))))
+       (insert-before (descendant old-tree (list index)) nil)   ;add a nil to shift the node array
+       (diff-dom old-dom new-dom (+ index 1) indexes
+                 (append instructions
+                         (list (list "insert" (reverse (cons index indexes)) "before"
+                                     (serialize (descendant new-tree (list index)) nil))))))
+      ;; update attrs then descend into children
+      (:else
+       (let* ((old-node (descendant old-tree (list index)))
+              (new-node (descendant new-tree (list index)))
+              (new-attrs
+                (and (element-p old-node)
+                     (element-p new-node)
+                     (remove-if #'null
+                                (mapcar (lambda (key)
+                                          (let ((old-value (gethash key (attributes old-node) ""))
+                                                (new-value (gethash key (attributes new-node) "")))
+                                            (when (string/= old-value new-value)
+                                              (list key new-value))))
+                                        (union (hash-keys (attributes new-node))
+                                               (hash-keys (attributes old-node))
+                                               :test 'string=))))))
+         (diff-dom old-dom new-dom 0 (cons index indexes)
+                   (if new-attrs
+                       (append instructions (list (append (list "mod") (list (reverse (cons index indexes))) new-attrs)))
+                       instructions)))))))
+
 (defun rr (socket &optional (parameters "?"))
   "Send a Re-Render to SOCKET with query string PARAMETERS."
   (let* ((*socket* socket)
