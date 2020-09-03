@@ -1,4 +1,17 @@
 /**
+ * descendant
+ * Return the node that is the indexed descendant of document.
+ * INDEXES: a list of indexes.
+ */
+function descendant (indexes) {
+    let node = document;
+    for (let i of indexes) {
+        node = node.childNodes[i];
+    }
+    return node;
+}
+
+/**
  * update
  * Modify the dom to be up to date with the server.
  * INSTRUCTIONS: An array containing objects like such
