@@ -37,6 +37,15 @@ Before connecting by websocket, the key is the identifier.")
   (loop :for key :being :the :hash-keys :of hash-table
         :collect key))
 
+(defun descendant (node indexes)
+  "Return the dom node which is the child of ancestor NODE.
+INDEXES is a list of locations of the children list of NODE."
+  (if (null indexes)
+      node
+      (descendant
+       (aref (children node) (car indexes))
+       (cdr indexes))))
+
 (defun rr (socket &optional (parameters "?"))
   "Send a Re-Render to SOCKET with query string PARAMETERS."
   (let* ((*socket* socket)
