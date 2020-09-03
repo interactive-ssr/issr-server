@@ -9,8 +9,6 @@
 
 (defun generate-id () )
 
-(defun update-reply (socket-or-id reply) )
-
 (defvar *socket* nil
   "The current socket being used.
 Do NOT set this globally; only bind dymaically.")
@@ -22,20 +20,14 @@ Do NOT set this globally; only bind dynamically.")
   `(hunchentoot:define-easy-handler description lambda-list
      (let* ((*id* (generate-id))
             (page ,(cons block (cons nil body))))
-       ;; Do whatever needs to be done with responses and replies
-       (when (null *socket*)
+       (unless *socket*
          (setf (gethash *id* *clients*)
-               (list *request* (strip (parse page)))))
-       (setq *out-reply* *reply*)
+               (list hunchentoot:*request* (strip (parse page)))))
        page)))
 
 (defvar *clients* (make-hash-table)
   "Key: socket, Value: (list *request* page).
-Before connecting by websocket, the key is the  identifier.")
-
-(defvar *out-reply* nil
-  "The reply for the websocket.
-Do NOT set globally; only bind dynamically.")
+Before connecting by websocket, the key is the identifier.")
 
 (defmacro nlet (name bindings &body body)
   `(labels ((,name ,(mapcar #'first bindings) ,@body))
