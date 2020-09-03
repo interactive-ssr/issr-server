@@ -71,3 +71,18 @@ function rr (obj) {
         socket.send(params);
     }
 }
+/**
+ * clean
+ * Remove all pure whitespace text nodes.
+ */
+function clean (node) {
+    for(let n = node.childNodes.length - 1; n >= 0; --n) {
+        let child = node.childNodes[n];
+        if (child.nodeType == 8 || (child.nodeType == 3 && !/\S/.test(child.nodeValue))) {
+            node.removeChild(child);
+        } else if (child.nodeType == 1) {
+            clean(child);
+        }
+    }
+}
+document.addEventListener("DOMContentLoaded", function () { clean(document); });
