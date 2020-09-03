@@ -14,10 +14,43 @@ function descendant (indexes) {
 /**
  * update
  * Modify the dom to be up to date with the server.
- * INSTRUCTIONS: An array containing objects like such
+ * INSTRUCTIONS: An array containing objects like such:
+ * - ["mod", [indexes], [key, value]...]: modifiy attributes
+ * - ["delete", [indexes,]]: delete node
+ * - ["insert", [indexes], position, html-string]: insert html-string either "before", "after", or "prepend" indexes.
+ * - ["cookie", cookies...]: set cookies
+ * - ["session", [key, value]...]: set session variables
  */
 function update (instructions) {
-    console.log(instructions);
+    for (let instruction of instructions) {
+        switch (instruction[0]) {
+        case "mod": {
+            let node = descendant(instruction[1]);
+            for (let i = 2; i < instruction.length; ++i) {
+                node[instruction[i][0]] = instruction[i][1];
+            }
+            break;}
+        case "delete": {
+            descendant(instruction[1]).outerHTML = "";
+            break;}
+        case "insert": {
+            let node = document.createElement('nil');
+            descendant(instruction[1])[instruction[2]](node);
+            node.outerHTML = instruction[3];
+            break;}
+        case "cookie": {
+            for (let i = 1; i < instruction.length; ++i) {
+                document.cookie = instructions[i];
+            }
+            break;}
+        case "session": {
+            for (let i = 1; i < instruction.length; ++i) {
+                sessionStorage.setItem(instruction[i][0],
+                                       instruction[i][1]);
+            }
+            break;}
+        }
+    }
 }
 
 let socket;
@@ -64,7 +97,6 @@ function rr (obj) {
         .concat(obj && obj.name? `${obj.name}=${obj.value}` : "")
         .filter(function (arg) { return arg !== ""; })
         .join("&");
-    console.log(params);
     if (!socket) {
         console.error("Socket is not set up yet; try calling setup before calling rr.");
     } else {
