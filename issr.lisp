@@ -181,7 +181,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
         (when hunchentoot:*session*
           (with-slots (hunchentoot::session-data) hunchentoot:*session*
             (when hunchentoot::session-data
-              (push (cons "session" (mapcar (lambda (data) (list (car data) (cdr data)))
+              (push (list "session" (mapcar (lambda (data) (list (car data) (cdr data)))
                                             hunchentoot::session-data))
                     instructions))))
         (if (listp new-page)
