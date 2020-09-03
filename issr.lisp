@@ -173,7 +173,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
                             (cons (car cookie)
                                   (slot-value (cdr cookie) 'hunchentoot::value)))
                           hunchentoot:cookies-out))
-            (push (cons "cookie" (mapcar (lambda (cookie)
+            (push (list "cookie" (mapcar (lambda (cookie)
                                            (hunchentoot::stringify-cookie (cdr cookie)))
                                          hunchentoot:cookies-out))
                   instructions)))
