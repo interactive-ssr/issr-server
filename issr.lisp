@@ -23,7 +23,7 @@ Do NOT set this globally; only bind dynamically.")
                (list hunchentoot:*request* (strip (parse page)))))
        page)))
 
-(defvar *clients* (make-hash-table)
+(defvar *clients* (make-hash-table :test 'equalp)
   "Key: socket, Value: (list *request* page).
 Before connecting by websocket, the key is the identifier.")
 
