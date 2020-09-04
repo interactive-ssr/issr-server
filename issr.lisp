@@ -1,7 +1,3 @@
-(mapc #'ql:quickload
-      '(jonathan plump websocket-driver-server str clack hunchentoot))
-(defpackage issr
-  (:use #:cl #:plump #:websocket-driver))
 (in-package #:issr)
 
 (defvar *ws-port* nil
