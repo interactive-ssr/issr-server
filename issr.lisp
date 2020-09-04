@@ -146,7 +146,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
          (*first-time* nil)
          (info (gethash socket *clients*))
          (hunchentoot:*request* (car info))
-         (hunchentoot:*request* (hunchentoot:session hunchentoot:*request*))
+         (hunchentoot:*session* (hunchentoot:session hunchentoot:*request*))
          (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
          (handler (hunchentoot:dispatch-easy-handlers hunchentoot:*request*))
          (previous-page (cadr info)))
@@ -165,7 +165,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
                             (cons (car cookie)
                                   (slot-value (cdr cookie) 'hunchentoot::value)))
                           hunchentoot:cookies-out))
-            (push (list "cookie" (mapcar (lambda (cookie)
+            (push (cons "cookie" (mapcar (lambda (cookie)
                                            (hunchentoot::stringify-cookie (cdr cookie)))
                                          hunchentoot:cookies-out))
                   instructions)))
@@ -180,20 +180,22 @@ INDEX: (aref (children parent) INDEX) to get current node."
             ;; redirect or some other custom instruction
             (push new-page instructions)
             ;; dom instructions
-            (setq instructions
-                  (append (diff-dom previous-page
-                                    (strip (parse new-page)))
-                          instructions))))
+            (let ((new-page (strip (parse new-page))))
+              (setq instructions
+                    (append (diff-dom previous-page new-page)
+                            instructions))
+              (setf (cadr (gethash *socket* *clients*)) new-page))))
       (send socket (jojo:to-json instructions)))))
 
 (defun socket-handler (socket message)
   ;; first connection
   (when (string= "id:" (subseq message 0 3))
-    (let* ((id (subseq message 3))
-           (info (gethash id *clients* nil)))
+    (let* ((id (parse-integer (subseq message 3)))
+           (info (gethash id *clients*)))
       (if info
           (progn
             (setf (gethash socket *clients*) info)
+            (format t "Connected to client with id ~a." id)
             (remhash id *clients*))
           (progn
             (warn (format nil "Uhhhhm, id \"~a\" doesn't exist." id))
@@ -211,15 +213,12 @@ INDEX: (aref (children parent) INDEX) to get current node."
     (lambda (responder) (declare (ignore responder))
       (start-connection socket))))
 
-(defparameter socket-server
-  (clack:clackup #'socket-server-handler :server :hunchentoot))
-
 (defun start (acceptor-or-servers
               &key (ws-port 5000)
                 (address "127.0.0.1")
                 (debug t) silent (use-thread t)
                 (use-default-middlewares t) &allow-other-keys)
-  (if ws-port (setq *ws-port* ws-port))
+  (setq *ws-port* ws-port)
   (if (listp acceptor-or-servers)
       (list (hunchentoot:start (car acceptor-or-servers))
             (clack:clackup (cadr acceptor-or-servers)))
@@ -236,5 +235,5 @@ INDEX: (aref (children parent) INDEX) to get current node."
 
 (defmacro redirect (target)
   `(if *socket*
-       (return (list "redirect" ,target)
-       (hunchentoot:redirect ,target))))
+       (return (list "redirect" ,target))
+       (hunchentoot:redirect ,target)))
