@@ -15,9 +15,9 @@ Do NOT set this globally; only bind dymaically.")
 Do NOT set this globally; only bind dynamically.")
 
 (defmacro define-easy-handler (description lambda-list &body body)
-  `(hunchentoot:define-easy-handler description lambda-list
+  `(hunchentoot:define-easy-handler ,description ,lambda-list
      (let* ((*id* (generate-id))
-            (page ,(cons block (cons nil body))))
+            (page ,(cons 'block (cons nil body))))
        (unless *socket*
          (setf (gethash *id* *clients*)
                (list hunchentoot:*request* (strip (parse page)))))
