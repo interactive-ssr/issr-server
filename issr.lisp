@@ -69,6 +69,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
                       collect
                       (list "insert"
                             (reverse (if (= i 0) indexes (cons i indexes)))
+                            0
                             (if (= i 0) "prepend" "after")
                             (serialize (aref children i) nil)))))
          (diff-dom old-dom new-dom length-children indexes
@@ -97,14 +98,14 @@ INDEX: (aref (children parent) INDEX) to get current node."
                  (let ((old-node (descendant old-tree (list index)))
                        (new-node (descendant new-tree (list index))))
                    (if (and (text-node-p new-node)
-                          (string= (text old-node)
-                                   (text new-node)))
-                     instructions
-                     (progn
-                       (insert-before old-node nil)   ;add a nil to shift the node array
-                       (append instructions
-                               (list (list "insert" (reverse (cons index indexes)) "before"
-                                                            (text new-node)))))))))
+                            (string= (text old-node)
+                                     (text new-node)))
+                       instructions
+                       (progn
+                         (insert-before old-node nil)   ;add a nil to shift the node array
+                         (append instructions
+                                 (list (list "insert" (reverse (cons index indexes)) 1 "before"
+                                             (text new-node)))))))))
       ;; insert new before
       ((let ((old-node (descendant old-tree (list index)))
              (new-node (descendant new-tree (list index))))
@@ -116,7 +117,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
        (insert-before (descendant old-tree (list index)) nil)   ;add a nil to shift the node array
        (diff-dom old-dom new-dom (+ index 1) indexes
                  (append instructions
-                         (list (list "insert" (reverse (cons index indexes)) "before"
+                         (list (list "insert" (reverse (cons index indexes)) 0 "before"
                                      (serialize (descendant new-tree (list index)) nil))))))
       ;; update attrs then descend into children
       (:else
