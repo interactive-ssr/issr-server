@@ -15,11 +15,12 @@ function descendant (indexes) {
  * update
  * Modify the dom to be up to date with the server.
  * INSTRUCTIONS: An array containing objects like such:
- * - ["mod", [indexes], [key, value]...]: modifiy attributes
+ * - ["mod", [indexes], [key, value]...]: modifiy attributes or properties
  * - ["delete", [indexes,]]: delete node
- * - ["insert", [indexes], position, html-string]: insert html-string either "before", "after", or "prepend" indexes.
+ * - ["insert", [indexes], text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
  * - ["cookie", cookies...]: set cookies
  * - ["session", [key, value]...]: set session variables
+ * - ["redirect", target]: redirect to target
  */
 function update (instructions) {
     for (let instruction of instructions) {
@@ -31,12 +32,16 @@ function update (instructions) {
             }
             break;}
         case "delete": {
-            descendant(instruction[1]).outerHTML = "";
+            descendant(instruction.slice(1)).remove();
             break;}
         case "insert": {
-            let node = document.createElement('nil');
-            descendant(instruction[1])[instruction[2]](node);
-            node.outerHTML = instruction[3];
+            let node = instruction[2]?
+                document.createTextNode(instruction[4]):
+                document.createElement('nil');
+            descendant(instruction[1])[instruction[3]](node);
+            if (!instruction[2]) {
+                node.outerHTML = instruction[4];
+            }
             break;}
         case "cookie": {
             for (let i = 1; i < instruction.length; ++i) {
@@ -49,6 +54,9 @@ function update (instructions) {
                                        instruction[i][1]);
             }
             break;}
+        case "redirect": {
+            document.location = instruction[1];
+            break;}
         }
     }
 }
@@ -60,7 +68,6 @@ let socket;
  * ID: the unique server generated id for identifying with the websocket.
  * PORT: The port to connect to.
  * PROTOCOL (optional): Either "wss" or "ws" (default).
- *
  */
 function setup (id, port, protocol) {
     if (!window.WebSocket) {
