@@ -5,6 +5,8 @@
 
 (defun generate-id () )
 
+(defvar *id* nil
+  "Used to identify the socket at the first connection.")
 (defvar *socket* nil
   "The current socket being used.
 Do NOT set this globally; only bind dymaically.")
