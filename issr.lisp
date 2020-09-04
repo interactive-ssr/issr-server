@@ -44,10 +44,7 @@ INDEXES is a list of locations of the children list of NODE."
                  &optional (index 0) indexes instructions)
   "Return a list of instructions to update the dom of OLD to look like NEW.
 OLD and NEW should both be plump virtual doms.
-Possible instructions:
-(\"delete\" (indexes)): .outerHTML = \"\";
-(\"insert\" (indexes) position html-string): create nil node; .prepend(node), .before(node), or .after(node); node.outerHTML = html-string;
-(\"mod\" (indexes) (attr-name attr-value)...): .setAttribute(attr-name, attr-value);
+See issr.js for possible instructions.
 Does not preserve old-dom.
 
 INDEXES: Reversed list of indexes to reach the current parent.
