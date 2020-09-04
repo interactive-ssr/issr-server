@@ -27,10 +27,6 @@ Do NOT set this globally; only bind dynamically.")
   "Key: socket, Value: (list *request* page).
 Before connecting by websocket, the key is the identifier.")
 
-(defmacro nlet (name bindings &body body)
-  `(labels ((,name ,(mapcar #'first bindings) ,@body))
-     (,name ,@(mapcar #'second bindings))))
-
 (defun hash-keys (hash-table)
   (loop :for key :being :the :hash-keys :of hash-table
         :collect key))
