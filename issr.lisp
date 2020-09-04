@@ -215,7 +215,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
 
 (defun start (acceptor-or-servers
               &key (ws-port 5000)
-                (address "127.0.0.1")
+                (address "0.0.0.0")
                 (debug t) silent (use-thread t)
                 (use-default-middlewares t) &allow-other-keys)
   (setq *ws-port* ws-port)
