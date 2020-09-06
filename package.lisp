@@ -1,4 +1,4 @@
-(defpackage issr
+(defpackage hunchenissr
   (:use #:cl #:plump #:websocket-driver)
   (:export :*clients*
            :*ws-port*

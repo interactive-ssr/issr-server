@@ -1,8 +1,8 @@
-(defpackage issr-asd
+(defpackage hunchenissr-asd
   (:use #:cl #:asdf))
-(in-package #:issr-asd)
+(in-package #:hunchenissr-asd)
 
-(defsystem #:issr
+(defsystem #:hunchenissr
   :description "Make Interactive-Server-Side-Rendered web pages with declaritive and recursive programming."
   :author "Charles Jackson <charles.b.jackson@protonmail.com>"
   :version "0.1"
@@ -14,4 +14,4 @@
                #:clack
                #:hunchentoot)
   :components ((:file "package")
-               (:file "issr" :depends-on ("package"))))
+               (:file "hunchenissr" :depends-on ("package"))))

@@ -1,9 +1,15 @@
-(in-package #:issr)
+(in-package #:hunchenissr)
 
 (defvar *ws-port* nil
   "The port to host the websocket server on.")
 
-(defun generate-id () )
+(defun generate-id (&optional (length 9) (not-these (hash-keys *clients*)))
+  "Genereate a random number that has LENGTH digits and is not a member of NOT-THESE.
+No leading zeros."
+  (let ((id (+ (expt 10 (- length 1)) (random (- (expt 10 length) 1)))))
+    (if (member id not-these)
+        (generate-id length not-these)
+        id)))
 
 (defvar *id* nil
   "Used to identify the socket at the first connection.")
@@ -41,6 +47,7 @@ INDEXES is a list of locations of the children list of NODE."
        (cdr indexes))))
 
 (defun diff-dom (old-dom new-dom
+                 ;; only for recursion
                  &optional (index 0) indexes instructions)
   "Return a list of instructions to update the dom of OLD to look like NEW.
 OLD and NEW should both be plump virtual doms.
@@ -68,7 +75,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
                 (loop for i from index to (- length-children 1)
                       collect
                       (list "insert"
-                            (reverse (if (= i 0) indexes (cons i indexes)))
+                            (reverse (if (= i 0) indexes (cons (- i 1) indexes)))
                             0
                             (if (= i 0) "prepend" "after")
                             (serialize (aref children i) nil)))))
@@ -87,58 +94,74 @@ INDEX: (aref (children parent) INDEX) to get current node."
          (diff-dom old-dom new-dom length-children indexes
                    (append instructions delete-instructions))))
       ;;; start comparing the current node
-      ;; move to the next sibling with no instructions
-      ((or (doctype-p (descendant old-tree (list index)))
-           (and (element-p (descendant old-tree (list index)))
-                (gethash "noupdate" (attributes (descendant old-tree (list index))) nil)))
-       (diff-dom old-dom new-dom (+ index 1) indexes instructions))
-      ;; update text if current node is a text node
-      ((text-node-p (descendant old-tree (list index)))
-       (diff-dom old-dom new-dom (+ index 1) indexes
-                 (let ((old-node (descendant old-tree (list index)))
-                       (new-node (descendant new-tree (list index))))
-                   (if (and (text-node-p new-node)
-                            (string= (text old-node)
-                                     (text new-node)))
-                       instructions
-                       (progn
-                         (insert-before old-node nil)   ;add a nil to shift the node array
-                         (append instructions
-                                 (list (list "insert" (reverse (cons index indexes)) 1 "before"
-                                             (text new-node)))))))))
-      ;; insert new before
-      ((let ((old-node (descendant old-tree (list index)))
-             (new-node (descendant new-tree (list index))))
-         (or (not (eq (type-of old-node) (type-of new-node)))
-             (string/= (if (element-p old-node) (tag-name old-node) "")
-                       (if (element-p new-node) (tag-name new-node) ""))
-             (string/= (gethash "id" (attributes old-node) "")
-                       (gethash "id" (attributes new-node) ""))))
-       (insert-before (descendant old-tree (list index)) nil)   ;add a nil to shift the node array
-       (diff-dom old-dom new-dom (+ index 1) indexes
-                 (append instructions
-                         (list (list "insert" (reverse (cons index indexes)) 0 "before"
-                                     (serialize (descendant new-tree (list index)) nil))))))
-      ;; update attrs then descend into children
       (:else
-       (let* ((old-node (descendant old-tree (list index)))
-              (new-node (descendant new-tree (list index)))
-              (new-attrs
+       (let ((old-node (descendant old-tree (list index)))
+             (new-node (descendant new-tree (list index))))
+         (cond
+           ;; move to the next sibling with no instructions
+           ((or (doctype-p old-node)
                 (and (element-p old-node)
-                     (element-p new-node)
-                     (remove-if #'null
-                                (mapcar (lambda (key)
-                                          (let ((old-value (gethash key (attributes old-node) ""))
-                                                (new-value (gethash key (attributes new-node) "")))
-                                            (when (string/= old-value new-value)
-                                              (list key new-value))))
-                                        (union (hash-keys (attributes new-node))
-                                               (hash-keys (attributes old-node))
-                                               :test 'string=))))))
-         (diff-dom old-dom new-dom 0 (cons index indexes)
-                   (if new-attrs
-                       (append instructions (list (append (list "mod") (list (reverse (cons index indexes))) new-attrs)))
-                       instructions)))))))
+                     (gethash "noupdate" (attributes old-node) nil)))
+            (diff-dom old-dom new-dom (+ index 1) indexes instructions))
+           ;; update text if current node is a text node
+           ((text-node-p old-node)
+            (diff-dom old-dom new-dom (+ index 1) indexes
+                      (if (and (text-node-p new-node)
+                               (string= (text old-node)
+                                        (text new-node)))
+                          instructions
+                          (progn
+                            (insert-before old-node nil)   ;add a nil to shift the node array
+                            (append instructions
+                                    (list (list "insert" (reverse (cons index indexes)) 1 "before"
+                                                (text new-node))))))))
+           ;; add, delete, or replace
+           ((or (not (eq (type-of old-node) (type-of new-node)))
+                (string/= (if (element-p old-node) (tag-name old-node) "")
+                          (if (element-p new-node) (tag-name new-node) ""))
+                (string/= (gethash "id" (attributes old-node) "")
+                          (gethash "id" (attributes new-node) "")))
+            (let ((diff-length (- (length (family new-node))
+                                  (length (family old-node)))))
+              (cond
+                ;; delete
+                ((< diff-length 0)
+                 (remove-child old-node) ;shift siblings
+                 (diff-dom old-dom new-dom index indexes
+                           (append instructions
+                                   (list (cons "delete" (reverse (cons index indexes)))))))
+                ;; add
+                ((< 0 diff-length)
+                 (insert-before old-node nil) ;shift siblings
+                 (diff-dom old-dom new-dom (+ index 1) indexes
+                           (append instructions
+                                   (list (list "insert" (reverse (cons index indexes)) 0 "before"
+                                               (serialize new-node nil))))))
+                ;; replace
+                (:else
+                 (diff-dom old-dom new-dom (+ index 1) indexes
+                           (append instructions
+                                   (list (list "insert" (reverse (cons index indexes)) 0 "before"
+                                               (serialize new-node nil))
+                                         (cons "delete" (reverse (cons (+ index 1) indexes))))))))))
+           ;; update attrs then descend into children
+           (:else
+            (let ((new-attrs
+                    (and (element-p old-node)
+                         (element-p new-node)
+                         (remove-if #'null
+                                    (mapcar (lambda (key)
+                                              (let ((old-value (gethash key (attributes old-node) ""))
+                                                    (new-value (gethash key (attributes new-node) "")))
+                                                (when (string/= old-value new-value)
+                                                  (list key new-value))))
+                                            (union (hash-keys (attributes new-node))
+                                                   (hash-keys (attributes old-node))
+                                                   :test 'string=))))))
+              (diff-dom old-dom new-dom 0 (cons index indexes)
+                        (if new-attrs
+                            (append instructions (list (append (list "mod") (list (reverse (cons index indexes))) new-attrs)))
+                            instructions))))))))))
 
 (defun rr (socket &optional (parameters "?"))
   "Send a Re-Render to SOCKET with query string PARAMETERS."
@@ -189,20 +212,22 @@ INDEX: (aref (children parent) INDEX) to get current node."
 
 (defun socket-handler (socket message)
   ;; first connection
-  (when (string= "id:" (subseq message 0 3))
-    (let* ((id (parse-integer (subseq message 3)))
-           (info (gethash id *clients*)))
-      (if info
-          (progn
-            (setf (gethash socket *clients*) info)
-            (format t "Connected to client with id ~a." id)
-            (remhash id *clients*))
-          (progn
-            (warn (format nil "Uhhhhm, id \"~a\" doesn't exist." id))
-            (return-from socket-handler)))))
-  ;; giving parameters to update page
-  (when (string= "?" (subseq message 0 1))
-    (rr socket message)))
+  (if (string= "id:" (subseq message 0 3))
+      (let* ((id (parse-integer (subseq message 3)))
+             (info (gethash id *clients*)))
+        (if info
+            (progn
+              (setf (gethash socket *clients*) info)
+              (format t "Connected to client with id ~a." id)
+              (remhash id *clients*))
+            (progn
+              (warn "Uhhhhm, id \"~a\" doesn't exist." id)
+              (return-from socket-handler))))
+      ;; giving parameters to update page
+      (if (and (gethash socket *clients*)
+               (string= "?" (subseq message 0 1)))
+          (rr socket message)
+          (warn "Suspicious websoket connection from ~a." socket))))
 
 (defun socket-server-handler (env)
   (let ((socket (make-server env)))
