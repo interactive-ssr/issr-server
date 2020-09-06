@@ -16,7 +16,7 @@ function descendant (indexes) {
  * Modify the dom to be up to date with the server.
  * INSTRUCTIONS: An array containing objects like such:
  * - ["mod", [indexes], [key, value]...]: modifiy attributes or properties
- * - ["delete", [indexes,]]: delete node
+ * - ["delete", indexes...]: delete node
  * - ["insert", [indexes], text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
  * - ["cookie", cookies...]: set cookies
  * - ["session", [key, value]...]: set session variables
