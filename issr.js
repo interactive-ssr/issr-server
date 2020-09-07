@@ -86,6 +86,7 @@ function setup (id, port, protocol) {
     };
 }
 
+let previousdata = {};
 /**
  * rr - re-render
  * Generate the url parameter list and send it over the server throught the socket.
@@ -96,14 +97,39 @@ function setup (id, port, protocol) {
  */
 function rr (obj) {
     let elements = document.querySelectorAll("[name]"),
-        params = "?" + Array.from(elements, function (element) {
-            return (!element.name ||
-                    (obj? element.name === obj.name : false))?
-                "" : `${element.name}=${element.value}`;
-        })
-        .concat(obj && obj.name? `${obj.name}=${obj.value}` : "")
-        .filter(function (arg) { return arg !== ""; })
-        .join("&");
+        data = {};
+    for (let element of elements) {
+        let name = element.name,
+            value = element.value;
+        if (typeof data[name] === "string") {
+            // become array
+            data[name] = [data[name], value];
+        } else if (typeof data[name] === "object") {
+            // append to array;
+            data[name].push(value);
+        } else {
+            // set value
+            data[name] = value;
+        }
+    }
+    if (obj) {
+        data[obj.name] = obj.value;
+    }
+    // generate params based on new and previous data
+    let params = "?" + Object.keys(data).map(function (name) {
+        if (!previousdata[name] || previousdata[name].toString() !== data[name].toString()) {
+            if (typeof data[name] === "object") {
+                return data[name].map(function (value) {
+                    return `${name}=${value}`;
+                }).join("&");
+            } else {
+                return `${name}=${data[name]}`;
+            }
+        } else {
+            return false;
+        }
+    }).filter(function (elm) { return elm; }).join("&");
+    previousdata = data;
     if (!socket) {
         console.error("Socket is not set up yet; try calling setup before calling rr.");
     } else {
