@@ -163,6 +163,20 @@ INDEX: (aref (children parent) INDEX) to get current node."
                             (append instructions (list (append (list "mod") (list (reverse (cons index indexes))) new-attrs)))
                             instructions))))))))))
 
+(defun unify-query-strings (old-query new-query)
+  "Return a new query string return a new query string wtih all the values from
+NEW-QUERY and any values from OLD-QUERY that are missing from NEW-QUERY.
+\"?\" should not be included in the query strings."
+  (let ((old-pairs (str:split "&" old-query))
+        (new-pairs (str:split "&" new-query)))
+    (str:join "&" (append new-pairs
+                          (remove-if (lambda (old-pair)
+                                       (member old-pair new-pairs
+                                               :test (lambda (old-pair new-pair)
+                                                       (string= (subseq old-pair 0 (position "=" old-pair :test 'string=))
+                                                                (subseq new-pair 0 (position "=" new-pair :test 'string=))))))
+                                     old-pairs)))))
+
 (defun rr (socket &optional (parameters "?"))
   "Send a Re-Render to SOCKET with query string PARAMETERS."
   (let* ((*socket* socket)
@@ -174,7 +188,9 @@ INDEX: (aref (children parent) INDEX) to get current node."
          (handler (hunchentoot:dispatch-easy-handlers hunchentoot:*request*))
          (previous-page (cadr info)))
     ;; update query string for request
-    (setf (slot-value hunchentoot:*request* 'hunchentoot:query-string) (subseq parameters 1))
+    (setf (slot-value hunchentoot:*request* 'hunchentoot:query-string)
+          (unify-query-strings (or (slot-value hunchentoot:*request* 'hunchentoot:query-string) "")
+                               (subseq parameters 1)))
     (hunchentoot:recompute-request-parameters :request hunchentoot:*request*)
     ;; generate page and instructions
     (let ((new-page (funcall handler))
