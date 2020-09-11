@@ -112,34 +112,51 @@ async function rr (...objs) {
         }
         let name = element.name,
             value = element.value;
-        if (typeof data[name] === "string") {
-            // become array
-            data[name] = [data[name], value];
-        } else if (typeof data[name] === "object") {
-            // append to array;
-            data[name].push(value);
-        } else {
+        switch (element.type) {
+        case "radio":
+            if (!element.checked) {
+                continue;
+            }
+            break;
+        case "checkbox":
+            if (!element.checked) {
+                value = "";
+            }
+            break;
+        case "file":
+            value = element.files;
+            if (value.length == 0) {
+                continue;
+            }
+            for (let file of value) {
+                if (!file.content) {
+                    let arrayBuffer = await new Response(file).arrayBuffer();
+                    file.content = btoa(
+                        new Uint8Array(arrayBuffer).reduce(function(data, byte) {
+                            return data + String.fromCharCode(byte);
+                        }, "")
+                    );
+                }
+            }
+            break;
+        }
+        if (typeof data[name] === "undefined") {
             // set value
             data[name] = value;
+        } else if (data[name] && data[name].constructor === Array) {
+            // append to array
+            data[name].push(value);
+        } else {
+            // become array
+            data[name] = [data[name], value];
         }
     }
     for (let obj of objs){
         data[obj.name] = obj.value;
     }
     // generate params based on new and previous data
-    let params = "?" + Object.keys(data).map(function (name) {
-        if (!previousdata[name] || previousdata[name].toString() !== data[name].toString()) {
-            if (typeof data[name] === "object") {
-                return data[name].map(function (value) {
-                    return `${name}=${value}`;
-                }).join("&");
-            } else {
-                return `${name}=${data[name]}`;
-            }
-        } else {
-            return false;
-        }
-    }).filter(function (elm) { return elm; }).join("&");
+    let changed = keepchanged(previousdata, data),
+        params = jsonfiles(changed)? "post:" + JSON.stringify(changed) : "?" + querystring(changed);
     previousdata = data;
     if (!socket) {
         console.error("Socket is not set up yet; try calling setup before calling rr.");
@@ -147,6 +164,62 @@ async function rr (...objs) {
         socket.send(params);
     }
 }
+
+File.prototype.content = "";
+File.prototype.toString = function () {
+    if (this.content) {
+        return this.content;
+    } else {
+        return "[object File]";
+    }
+}
+FileList.prototype.toString = function () {
+    if (this.length > 0) {
+        return Array.from(this, function (file) {
+            return file.toString();
+        }).join(",");
+    } else {
+        return "[object FileList]"
+    }
+}
+function keepchanged (olddata, newdata) {
+    let updated = {};
+    for (let name of Object.keys(newdata)) {
+        if (typeof olddata[name] === "undefined" ||
+            olddata[name].toString() !== newdata[name].toString()) {
+            updated[name] = newdata[name];
+        }
+    }
+    return updated;
+}
+
+function jsonfiles (data) {
+    let containsfiles = false;
+    for (let key of Object.keys(data)) {
+        if (data[key].constructor === FileList) {
+            containsfiles = true;
+            data[key] = Array.from(data[key], function (file) {
+                return {content: file.content,
+                        name: file.name,
+                        type: file.type}
+            });
+        }
+    }
+    return containsfiles;
+}
+
+function querystring (data) {
+    return Object.keys(data).map(function (name) {
+        if (typeof data[name] === "object") {
+            return data[name].map(function (value) {
+                return `${name}=${value}`;
+            }).join("&");
+        } else {
+            return `${name}=${data[name]}`;
+        }
+    }).join("&");
+}
+
 /**
  * clean
  * Remove all pure whitespace text nodes.
