@@ -163,19 +163,28 @@ INDEX: (aref (children parent) INDEX) to get current node."
                             (append instructions (list (append (list "mod") (list (reverse (cons index indexes))) new-attrs)))
                             instructions))))))))))
 
-(defun unify-query-strings (old-query new-query)
-  "Return a new query string return a new query string wtih all the values from
-NEW-QUERY and any values from OLD-QUERY that are missing from NEW-QUERY.
-\"?\" should not be included in the query strings."
-  (let ((old-pairs (str:split "&" old-query))
-        (new-pairs (str:split "&" new-query)))
-    (str:join "&" (append new-pairs
-                          (remove-if (lambda (old-pair)
-                                       (member old-pair new-pairs
-                                               :test (lambda (old-pair new-pair)
-                                                       (string= (subseq old-pair 0 (position "=" old-pair :test 'string=))
-                                                                (subseq new-pair 0 (position "=" new-pair :test 'string=))))))
-                                     old-pairs)))))
+(defun handle-post-data (data)
+  "Return a list of get/post parameters from json/hash-table DATA.
+Create any files necessary."
+  (let (params)
+    (dolist (name (hash-keys data))
+      (let ((value (gethash name data)))
+        (if (listp value)
+            (dolist (value value)
+              (push (if (hash-table-p value)
+                        (let ((path (hunchentoot::make-tmp-file-name))
+                              (byte-array (base64:base64-string-to-usb8-array
+                                           (gethash "content" value))))
+                          (with-open-file (outfile path :direction :output
+                                                   :element-type '(unsigned-byte 8))
+                            (write-sequence byte-array outfile))
+                          (cons name (list path
+                                           (gethash "name" value)
+                                           (gethash "type" value))))
+                        (cons name value))
+                    params))
+            (push (cons name value) params))))
+    (reverse params)))
 
 (defun rr (socket &optional (parameters "?"))
   "Send a Re-Render to SOCKET with query string PARAMETERS."
@@ -188,10 +197,26 @@ NEW-QUERY and any values from OLD-QUERY that are missing from NEW-QUERY.
          (handler (hunchentoot:dispatch-easy-handlers hunchentoot:*request*))
          (previous-page (cadr info)))
     ;; update query string for request
-    (setf (slot-value hunchentoot:*request* 'hunchentoot:query-string)
-          (unify-query-strings (or (slot-value hunchentoot:*request* 'hunchentoot:query-string) "")
-                               (subseq parameters 1)))
-    (hunchentoot:recompute-request-parameters :request hunchentoot:*request*)
+    (let ((previous-params (copy-tree (hunchentoot:get-parameters*))))
+      (cond
+        ;; query string
+        ((str:starts-with-p "?" parameters)
+         (setf (slot-value hunchentoot:*request* 'hunchentoot:query-string)
+               (subseq parameters 1))
+         ;; recaclculate parameters
+         (hunchentoot:recompute-request-parameters :request hunchentoot:*request*))
+        ;; multipart/form-data
+        ((str:starts-with-p "post:" parameters)
+         (let ((data (handle-post-data (jojo:parse (subseq parameters 5) :as :hash-table))))
+           (setf (slot-value hunchentoot:*request* 'hunchentoot:get-parameters) data))))
+      ;; fill in missing parameters from previous request
+      (let ((temp-params (copy-tree (slot-value hunchentoot:*request* 'hunchentoot:get-parameters))))
+        (dolist (elm previous-params)
+          (unless (member (car elm) (slot-value hunchentoot:*request* 'hunchentoot:get-parameters) :key #'car :test #'string=)
+            (setf temp-params
+                  (append temp-params
+                          (list elm)))))
+      (setf (slot-value hunchentoot:*request* 'hunchentoot:get-parameters) temp-params))
     ;; generate page and instructions
     (let ((new-page (funcall handler))
           (instructions (list)))
@@ -224,26 +249,27 @@ NEW-QUERY and any values from OLD-QUERY that are missing from NEW-QUERY.
                     (append (diff-dom previous-page new-page)
                             instructions))
               (setf (cadr (gethash *socket* *clients*)) new-page))))
-      (send socket (jojo:to-json instructions)))))
+      (send socket (jojo:to-json instructions))))))
 
 (defun socket-handler (socket message)
   ;; first connection
-  (if (string= "id:" (subseq message 0 3))
+  (if (str:starts-with-p "id:" message)
       (let* ((id (parse-integer (subseq message 3)))
              (info (gethash id *clients*)))
         (if info
             (progn
               (setf (gethash socket *clients*) info)
-              (format t "Connected to client with id ~a." id)
+              (format t "Connected to client with id:~a.~%" id)
               (remhash id *clients*))
             (progn
-              (warn "Uhhhhm, id \"~a\" doesn't exist." id)
+              (warn "Uhhhhm, id:~a doesn't exist.~%" id)
               (return-from socket-handler))))
       ;; giving parameters to update page
       (if (and (gethash socket *clients*)
-               (string= "?" (subseq message 0 1)))
+               (or (str:starts-with-p "?" message)
+                   (str:starts-with-p "post:" message)))
           (rr socket message)
-          (warn "Suspicious websoket connection from ~a." socket))))
+          (warn "Suspicious websoket connection from ~a.~%" socket))))
 
 (defun socket-server-handler (env)
   (let ((socket (make-server env)))
