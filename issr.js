@@ -91,14 +91,25 @@ let previousdata = {};
  * rr - re-render
  * Generate the url parameter list and send it over the server throught the socket.
  * Any element that has a "name" attribute will be put in the parameter list.
- * OBJ (optional): Make OBJ.name be the only one of its kind in the parameter list.
+ * OBJS (optional) (variadic): Make OBJ.name be the only one of its kind in the parameter list.
  *
- * Usually, you would want to call rr as rr() or rr(this) from something like onclick="rr(this)", but it can be called as rr({name:"custom-name",value:"custom-value"}) for custom results.
+ * Usually, you would want to call rr as rr() or rr(this) from something like onclick="rr(this)", but it can be called as rr({name:"custom-name",value:"custom-value"}...) for custom results.
  */
-function rr (obj) {
+async function rr (...objs) {
     let elements = document.querySelectorAll("[name]"),
-        data = {};
+        data = {},
+        taken = function (name) {
+            for (let obj of objs) {
+                if (name === obj.name) {
+                    return true;
+                }
+            }
+            return false;
+        };
     for (let element of elements) {
+        if (element.disabled || taken(element.name)) {
+            continue;
+        }
         let name = element.name,
             value = element.value;
         if (typeof data[name] === "string") {
@@ -112,7 +123,7 @@ function rr (obj) {
             data[name] = value;
         }
     }
-    if (obj) {
+    for (let obj of objs){
         data[obj.name] = obj.value;
     }
     // generate params based on new and previous data
