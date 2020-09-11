@@ -64,7 +64,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
        instructions)
       ;; move to next sibling of parent with no instructions
       ((and (>= index (length (children old-tree)))
-                (>= index (length (children new-tree))))
+            (>= index (length (children new-tree))))
        (diff-dom old-dom new-dom (+ (car indexes) 1)
                  (cdr indexes) instructions))
       ;; insert rest of children from new
@@ -86,11 +86,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
        (let* ((length-children (length (children old-tree)))
               (delete-instructions
                 (loop for i from (- length-children 1) downto index
-                      with node = (descendant old-tree (list index))
-                      if (if (element-p node)
-                             (gethash "noupdate" (attributes node) t)
-                             t)
-                        collect (cons "delete" (reverse (cons index indexes))))))
+                      collect (cons "delete" (reverse (cons index indexes))))))
          (diff-dom old-dom new-dom length-children indexes
                    (append instructions delete-instructions))))
       ;;; start comparing the current node
@@ -100,8 +96,11 @@ INDEX: (aref (children parent) INDEX) to get current node."
          (cond
            ;; move to the next sibling with no instructions
            ((or (doctype-p old-node)
+                (comment-p old-node)
                 (and (element-p old-node)
-                     (gethash "noupdate" (attributes old-node) nil)))
+                     (gethash "noupdate" (attributes old-node) nil)
+                     (element-p new-node)
+                     (gethash "noupdate" (attributes new-node) nil)))
             (diff-dom old-dom new-dom (+ index 1) indexes instructions))
            ;; update text if current node is a text node
            ((text-node-p old-node)
@@ -125,13 +124,15 @@ INDEX: (aref (children parent) INDEX) to get current node."
                                   (length (family old-node)))))
               (cond
                 ;; delete
-                ((< diff-length 0)
+                ((or (< diff-length 0)
+                     (attribute new-node "noupdate"))
                  (remove-child old-node) ;shift siblings
                  (diff-dom old-dom new-dom index indexes
                            (append instructions
                                    (list (cons "delete" (reverse (cons index indexes)))))))
                 ;; add
-                ((< 0 diff-length)
+                ((or (< 0 diff-length)
+                     (attribute old-node "noupdate"))
                  (insert-before old-node nil) ;shift siblings
                  (diff-dom old-dom new-dom (+ index 1) indexes
                            (append instructions
@@ -141,9 +142,8 @@ INDEX: (aref (children parent) INDEX) to get current node."
                 (:else
                  (diff-dom old-dom new-dom (+ index 1) indexes
                            (append instructions
-                                   (list (list "insert" (reverse (cons index indexes)) 0 "before"
-                                               (serialize new-node nil))
-                                         (cons "delete" (reverse (cons (+ index 1) indexes))))))))))
+                                   (list (list "mod" (reverse (cons index indexes)) 0 "before"
+                                               (list "outerHTML" (serialize new-node nil))))))))))
            ;; update attrs then descend into children
            (:else
             (let ((new-attrs
