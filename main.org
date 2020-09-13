@@ -1,0 +1,95 @@
+#+title: ISSR
+* Overview
+Until someone can think of a better name, ISSR stands for Interactive Server Side Rendering. What makes ISSR unique is its lack of any kind of client-side programming. [[https://github.com/interactive-ssr/js/blob/master/main.org#also-see][Other Server based frameworks]] allow you write what would normally be written in Javascript onto the server. ISSR goes a step further into the land of [[https://dev.to/brewsterbhg/what-the-heck-is-declarative-programming-anyways-2bj2][declarative programming]] by moving any interactive changes into the realm of [[HTTPS://en.wikipedia.org/wiki/HTML][HTML]] /generation/ (rather than [[https://en.wikipedia.org/wiki/Document_Object_Model][DOM]] manipulation). The web developer only needs to know HTML and the server-side programming language (and [[https://en.wikipedia.org/wiki/CSS][CSS]] if you want styles); No knowledge about Javascript or DOM is necessary.
+
+Summary for the web developer:
+- Zero to minimal Javascript
+- No DOM manipulation (on client or server)
+- Client is HTML (and CSS) only
+- Server generates HTML
+- Server still does usual server things (database, cookies, session, computation)
+- Clean website architecture
+- Straightforward web page design
+
+* Concept and Basic Examples
+Without ISSR, you would only generate the HTML for the initial page and have a mix of Javascript DOM manipulation and [[https://www.w3schools.com/xml/ajax_intro.asp][AJAX]] to update the page thereafter. With ISSR, you generate your HTML based on a set of parameters ([[https://en.wikipedia.org/wiki/Query_string][query string]]) and the HTML will be generated to be what the page should look like. This has the added benefit of making any state of the web page be accessible by a custom [[https://en.wikipedia.org/wiki/URL][URL]], just the way it is supposed to be. 
+
+The query string is generated the same way the [[https://www.w3schools.com/tags/tag_form.asp][form-tag]] would do it. It takes all elements that have a ~name~ attribute and puts their ~name~ and ~value~ attributes in an string like so: ~name1=value1&name2=value2&name3=value3~. The exception is when the action that submits the form (attribute ~type="submit"~ ) has a name. The ISSR equivalent is calling ~rr(this)~. In both cases the name of the current tag (or object) will unique in the query string.
+
+** Example Query String Generation
+#+BEGIN_SRC html
+  <!-- traditional WITHOUT ISSR-->
+  <form action="/submit-form" method="POST">
+    <input name="name1" value="value1" />
+    <input name="name2" value="value2" />
+    <button type="submit" name="action" value="delete">delete</button>
+    <button type="submit" name="action" value="add">add</button>
+  </form>
+  <!-- With ISSR -->
+  <input name="name1" value="value1" />
+  <input name="name2" value="value2" />
+  <button onclick="rr(this)" name="action" value="delete">delete</button>
+  <button onclick="rr(this)" name="action" value="add">add</button>
+#+END_SRC
+For both examples, pressing delete will generate the query string: ~name1=value1&name2=value2&action=delete~ and pressing add will generate the query string: ~name1=value1&name2=value2&action=add~.
+
+Because the whole page acts like a form, the form tag becomes implicit and doesn't need to be written.
+The big *disadvantage* to the traditional approach is that the page must be totally refreshed and re-rendered when the form is submitted; this is not the case with ISSR.
+** Example Without ISSR (Javascript)
+The add button adds the next number to the end of the list:
+#+BEGIN_SRC html
+  <ul id="mylist">
+  <!-- non-descriptive HTML -->
+  </ul> 
+  <button onclick="addToList()">add</button>
+#+END_SRC
+#+BEGIN_SRC javascript
+  let x = 1; // global variable
+  function addToList () {
+      let mylist = document.getElementById("mylist"),
+          newItem = document.createElement('li');
+      mylist.append(newItem); // DOM manipulation
+      newItem.innerHTML = x;
+      x += 1; // variable manipulation
+  }
+#+END_SRC
+** Example With ISSR
+Same functionality as the previous example, but using [[https://github.com/interactive-ssr/hunchenissr][Hunchenissr]]:
+#+BEGIN_SRC html
+  <ul>
+    <!-- Comma and ,@ are to run Lisp code and dump the result into HTML -->
+    <!-- ,@ is to dump a list rather than a value -->
+    ,@(loop for n from 1 to x 
+        collect <li>,(progn n)<li>)
+  </ul>
+  <button onclick="rr(this)" name="x" value=(+ x 1)>add</button>
+#+END_SRC
+~rr()~ is the function to theoretically Re-Render the page. I say theoretically because only the parts of the page that have changed will be actually be re-rendered.
+
+ISSR is versatile in that it can be applied to different programming languages and HTTP servers. Here is the same example in PHP:
+#+BEGIN_SRC html
+  <ul>
+    <!-- <?php ?> is to run PHP code -->
+    <?php for ($n = 1; $n <= $x; $n += 1) { ?> 
+      <li><?= $n ?></li> <!-- <?= ?> is to run PHP code and dump the value into HTML -->
+    <?php } ?>
+  </ul>
+  <button onclick="rr(this)" name="x" value="<?= $x + 1 ?>">add</button>
+#+END_SRC
+Both of these examples are not only shorter but cleaner than the mutative Javascript version. There are less variable mutations, no function name or global variable to keep track of, and there is no DOM manipulation or client-side scripting of any kind. And of course, none of them will refresh the page.
+* Architecture
+** Big Picture
+ISSR consists of a *very* small (less than 2kB) Javascript library (issr.js) and a server module that communicates over a web socket. Issr.js' job is to make a query string from the current page (just like a form does), and blindly execute instructions from the server. The server module's job is to use the correct server-side subroutine to generate fresh HTML and figure out the minimum number of changes to update the client's view.
+[[https://raw.githubusercontent.com/interactive-ssr/js/master/big-picture.png]]
+** In Depth
+In reality the entire query string is not sent. (Imagine a website like google sheets, the query string would be very large if all elements were sent.) Only the parts of the query string that have changed since the last request are sent. The server can figure out the missing parts of the query string that remained the same as last time. 
+
+In order to figure out the minimum instructions to update the Client DOM, the server goes through both the fresh HTML and the HTML that was sent to the client previously; both are in virtual DOM form now. It is mostly optimized, but has similar flaws as the [[https://reactjs.org/docs/reconciliation.html][React.js]] model for doing so. ISSR uses the ~id~ attribute in a similar way that React.js uses the ~key~ attribute.
+[[https://raw.githubusercontent.com/interactive-ssr/js/master/in-depth.png]]
+* Philosophy
+** Declarative Markup
+Markup (HTML) should be declarative. Not just what the client receives but also in way it is generated. The web developer should /declare/ what the web page should look like, not just the initial page, but /every single/ unique page the client will ever visit. Not to mention that every state of the web page should have a unique URL.
+** Recursive Forms
+Every page that has user interaction should be a form (implicit). This form should always send "post" (actually websocket) requests and should always submit to its own page. If a page has URL ~example.com~, any time the "form" is submitted on this page, it will submit right back to ~example.com~. If the web developer would like the user to be redirected to a different page after the form is done submitting, he can simply use a server-side redirection function.
+* Also See
+ISSR is not the first web-framework to take the server-side-only approach ([[https://github.com/phoenixframework/phoenix_live_view][Phoenix Live View]], [[https://ihp.digitallyinduced.com/][Integrated Haskell Platform]], and [[https://github.com/dbohdan/liveviews][others]]).
