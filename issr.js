@@ -66,7 +66,7 @@ let socket;
  * setup
  * Connect to the websocket on the server.
  * ID: the unique server generated id for identifying with the websocket.
- * PORT: The port to connect to.
+ * PORT (optional): The port to connect to. 443 (default).
  * PROTOCOL (optional): Either "wss" or "ws" (default).
  */
 function setup (id, port, protocol) {
@@ -75,7 +75,10 @@ function setup (id, port, protocol) {
         return;
     }
     if (!protocol) {
-        protocol = "ws"
+        protocol = "ws";
+    }
+    if (!port) {
+        port = 443;
     }
     socket = new WebSocket(`${protocol}://${location.hostname}:${port}`);
     socket.onmessage = function (event) {
@@ -151,7 +154,7 @@ async function rr (...objs) {
             data[name] = [data[name], value];
         }
     }
-    for (let obj of objs){
+    for (let obj of objs) {
         data[obj.name] = obj.value;
     }
     // generate params based on new and previous data
