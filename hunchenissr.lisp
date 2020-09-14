@@ -23,7 +23,7 @@ Do NOT set this globally; only bind dynamically.")
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
      (let* ((*id* (generate-id))
-            (page ,(cons 'block (cons nil body))))
+            (page (block nil ,@body)))
        (unless *socket*
          (setf (gethash *id* *clients*)
                (list hunchentoot:*request* (strip (parse page)))))
@@ -175,8 +175,11 @@ Create any files necessary."
                         (let ((path (hunchentoot::make-tmp-file-name))
                               (byte-array (base64:base64-string-to-usb8-array
                                            (gethash "content" value))))
-                          (with-open-file (outfile path :direction :output
-                                                   :element-type '(unsigned-byte 8))
+                          (ensure-directories-exist (directory-namestring path))
+                          (with-open-file (outfile path :if-does-not-exist :create
+                                                        :if-exists :supersede
+                                                        :direction :output
+                                                        :element-type '(unsigned-byte 8))
                             (write-sequence byte-array outfile))
                           (cons name (list path
                                            (gethash "name" value)
