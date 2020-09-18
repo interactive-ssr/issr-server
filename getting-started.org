@@ -30,4 +30,4 @@ Call Re-Render:
     I am add button
   </button>
 #+END_SRC
-Now your server should have a parameter who's name is ~action~ and who's value is ~"add"~. All other named elements on the page will be parameters too.
+Now your server should have a parameter who's name is ~action~ and who's value is "add". All other named elements on the page will be parameters too.
