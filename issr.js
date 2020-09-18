@@ -61,7 +61,7 @@ function update (instructions) {
     }
 }
 
-let socket;
+let socket, wsurl;
 /**
  * setup
  * Connect to the websocket on the server.
@@ -80,7 +80,8 @@ function setup (id, port, protocol) {
     if (!port) {
         port = 443;
     }
-    socket = new WebSocket(`${protocol}://${location.hostname}:${port}`);
+    wsurl = `${protocol}://${location.hostname}:${port}`;
+    socket = new WebSocket(wsurl);
     socket.onmessage = function (event) {
         update(JSON.parse(event.data));
     };
@@ -163,27 +164,45 @@ async function rr (...objs) {
     previousdata = data;
     if (!socket) {
         console.error("Socket is not set up yet; try calling setup before calling rr.");
+        return false;
+    } else if (socket.readyState > 1) {
+        socket = new WebSocket(wsurl);
+        socket.onmessage = function (event) {
+            update(JSON.parse(event.data));
+        };
+        jsonfiles(previousdata);
+        let loc = location.href.toString(), host = location.host,
+            state = {uri: loc.substring(loc.indexOf(host) + host.length),
+                     page: "<!doctype html>" + document.documentElement.outerHTML,
+                     session: Object.keys(sessionStorage)
+                     .map(function (key) {
+                         return [key, sessionStorage.getItem(key)];
+                     }),
+                     cookies: document.cookie?
+                     document.cookie.split("; ")
+                     .map(function (cookie) {
+                         return cookie.split("=").map(decodeURI);
+                     }):[],
+                     params: previousdata};
+        console.log(state);
+        socket.onopen = function (event) {
+            socket.send("http:" + JSON.stringify(state));
+            socket.send(params);
+        };
     } else {
         socket.send(params);
     }
+    return true;
 }
 
 File.prototype.content = "";
 File.prototype.toString = function () {
-    if (this.content) {
-        return this.content;
-    } else {
-        return "[object File]";
-    }
+    return this.content;
 }
 FileList.prototype.toString = function () {
-    if (this.length > 0) {
-        return Array.from(this, function (file) {
-            return file.toString();
-        }).join(",");
-    } else {
-        return "[object FileList]"
-    }
+    return Array.from(this, function (file) {
+        return file.toString();
+    }).join(",");
 }
 function keepchanged (olddata, newdata) {
     let updated = {};
@@ -215,10 +234,10 @@ function querystring (data) {
     return Object.keys(data).map(function (name) {
         if (typeof data[name] === "object") {
             return data[name].map(function (value) {
-                return `${name}=${value}`;
+                return `${encodeURI(name)}=${encodeURI(value)}`;
             }).join("&");
         } else {
-            return `${name}=${data[name]}`;
+            return `${encodeURI(name)}=${encodeURI(data[name])}`;
         }
     }).join("&");
 }
