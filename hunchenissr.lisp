@@ -176,6 +176,8 @@ Create any files necessary."
                               (byte-array (base64:base64-string-to-usb8-array
                                            (gethash "content" value))))
                           (ensure-directories-exist (directory-namestring path))
+                          (when hunchentoot:*file-upload-hook*
+                            (funcall hunchentoot:*file-upload-hook* path))
                           (with-open-file (outfile path :if-does-not-exist :create
                                                         :if-exists :supersede
                                                         :direction :output
