@@ -1,5 +1,5 @@
 #+title: Hunchenissr
-That is HUNCHENtoot ISSR. Make sure to see the [[https://github.com/interactive-ssr/js/blob/master/main.org][main readme]] for the ISSR project and [[https://github.com/interactive-ssr/js/blob/master/getting-started.org][setup issr.js]].
+That is [[https://edicl.github.io/hunchentoot/#recompute-request-parameters][HUNCHENtoot]] ISSR. Make sure to see the [[https://github.com/interactive-ssr/js/blob/master/main.org][main readme]] for the ISSR project and [[https://github.com/interactive-ssr/js/blob/master/getting-started.org][setup issr.js]].
 
 * Getting Started
 First clone the repository where quicklisp can find it. You should have [[https://www.quicklisp.org/beta/][quicklisp]] installed too:
