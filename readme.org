@@ -1,0 +1,5 @@
+#+title: issr.js
+This is the readme for the client Javascript. Make sure to see the [[main readme]]
+for the ISSR project.
+
+[[https://github.com/interactive-ssr/js/blob/master/getting-started.org][Getting started with issr.js]]
