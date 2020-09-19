@@ -79,7 +79,7 @@ ISSR is versatile in that it can be applied to different programming languages a
 Both of these examples are not only shorter but cleaner than the mutative Javascript version. There are less variable mutations, no function name or global variable to keep track of, and there is no DOM manipulation or client-side scripting of any kind. And of course, none of them will refresh the page.
 * Architecture
 ** Big Picture
-ISSR consists of a *very* small (less than 2kB) Javascript library (issr.js) and a server module that communicates over a web socket. Issr.js' job is to make a query string from the current page (just like a form does), and blindly execute instructions from the server. The server module's job is to use the correct server-side subroutine to generate fresh HTML and figure out the minimum number of changes to update the client's view.
+ISSR consists of a *very* small Javascript library (issr.js) and a server module that communicates over a web socket. Issr.js' job is to make a query string from the current page (just like a form does), and blindly execute instructions from the server. The server module's job is to use the correct server-side subroutine to generate fresh HTML and figure out the minimum number of changes to update the client's view.
 [[https://raw.githubusercontent.com/interactive-ssr/js/master/big-picture.png]]
 ** In Depth
 In reality the entire query string is not sent. (Imagine a website like google sheets, the query string would be very large if all elements were sent.) Only the parts of the query string that have changed since the last request are sent. The server can figure out the missing parts of the query string that remained the same as last time. 
