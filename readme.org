@@ -1,0 +1,41 @@
+#+title: Hunchenissr
+That is HUNCHENtoot ISSR. Make sure to see the [[https://github.com/interactive-ssr/js/blob/master/main.org][main readme]] for the ISSR project and [[https://github.com/interactive-ssr/js/blob/master/getting-started.org][setup issr.js]].
+
+* Getting Started
+First clone the repository where quicklisp can find it. You should have [[https://www.quicklisp.org/beta/][quicklisp]] installed too:
+#+BEGIN_SRC sh
+$ cd ~/quicklisp/local-projects/
+$ git clone https://github.com/interactive-ssr/hunchenissr
+#+END_SRC
+Then load hunchenissr via quicklisp. You may want to include some other web tools too. I suggest [[https://github.com/moderninterpreters/markup][markup]] for generating HTML.
+#+BEGIN_SRC lisp
+(mapc #'ql:quickload '(hunchenissr markup))
+#+END_SRC
+Then include hunchentoot and hunchenissr in your package:
+#+BEGIN_SRC lisp
+(defpackage your-package
+  (:use #:cl #:hunchentoot #:hunchenissr #:markup)
+  (:shadowing-import-from #:hunchenissr
+   :define-easy-handler
+   :start
+   :stop
+   :redirect))
+(in-package #:your-package)
+#+END_SRC
+Start your server:
+#+BEGIN_SRC lisp
+  (defparameter server
+    (start (make-instance 'easy-acceptor
+                          :port 8080
+                          :document-root "resources/")
+           :ws-port 4433))
+#+END_SRC
+~:ws-port~ becomes a global variable.
+
+
+Now you can use ~define-easy-handler~ just like you would in hunchentoot. Inside ~define-easy-handler~, some new variables will be available:
+- ~*id*~: The unique id to make the connection use is in the [[https://github.com/interactive-ssr/js/blob/master/getting-started.org#3][setup of issr.js]].
+- ~*ws-port*~: The port websockets connect on. Also used in setup of issr.js.
+- ~*first-time*~: ~t~ if it is the first HTTP connection of this client.
+- ~*socket*:~ The current connection. It is ~nil~ on the first HTTP connection.
+- ~*clients*~: A hash-table of all connections.
