@@ -9,9 +9,8 @@
   :serial t
   :depends-on (#:jonathan
                #:plump
-               #:websocket-driver-server
+               #:clws
                #:str
-               #:clack
                #:hunchentoot)
   :components ((:file "package")
                (:file "hunchenissr" :depends-on ("package"))))

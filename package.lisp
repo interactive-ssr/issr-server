@@ -1,5 +1,5 @@
 (defpackage hunchenissr
-  (:use #:cl #:plump #:websocket-driver)
+  (:use #:cl #:plump)
   (:export :*clients*
            :*ws-port*
            :*socket*

@@ -3,6 +3,21 @@
 (defvar *ws-port* nil
   "The port to host the websocket server on.")
 
+(defvar *clients* (make-hash-table :test 'equalp)
+  "Key: socket, Value: (list *request* page).
+Before connecting by websocket, the key is the identifier.")
+
+(defvar *id* nil
+  "Used to identify the socket at the first connection.")
+
+(defvar *socket* nil
+  "The current socket being used.
+Do NOT set this globally; only bind dymaically.")
+
+(defvar *first-time* t
+  "T if it is the first time a connection is being made.
+Do NOT set this globally; only bind dynamically.")
+
 (defun generate-id (&optional (length 9) (not-these (hash-keys *clients*)))
   "Genereate a random number that has LENGTH digits and is not a member of NOT-THESE.
 No leading zeros."
@@ -10,15 +25,6 @@ No leading zeros."
     (if (member id not-these)
         (generate-id length not-these)
         id)))
-
-(defvar *id* nil
-  "Used to identify the socket at the first connection.")
-(defvar *socket* nil
-  "The current socket being used.
-Do NOT set this globally; only bind dymaically.")
-(defvar *first-time* t
-  "T if it is the first time a connection is being made.
-Do NOT set this globally; only bind dynamically.")
 
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
@@ -28,10 +34,6 @@ Do NOT set this globally; only bind dynamically.")
          (setf (gethash *id* *clients*)
                (list hunchentoot:*request* (strip (parse page)))))
        page)))
-
-(defvar *clients* (make-hash-table :test 'equalp)
-  "Key: socket, Value: (list *request* page).
-Before connecting by websocket, the key is the identifier.")
 
 (defun hash-keys (hash-table)
   (loop :for key :being :the :hash-keys :of hash-table
@@ -221,43 +223,46 @@ Create any files necessary."
             (setf temp-params
                   (append temp-params
                           (list elm)))))
-      (setf (slot-value hunchentoot:*request* 'hunchentoot:get-parameters) temp-params))
-    ;; generate page and instructions
-    (let ((new-page (funcall handler))
-          (instructions (list)))
-      (when (= 200 (hunchentoot:return-code hunchentoot:*reply*))
-        ;; cookies
-        (with-slots (hunchentoot:cookies-out) hunchentoot:*reply*
-          (when hunchentoot:cookies-out
-            (setf (slot-value hunchentoot:*request* 'hunchentoot:cookies-in)
-                  (mapcar (lambda (cookie)
-                            (cons (car cookie)
-                                  (slot-value (cdr cookie) 'hunchentoot::value)))
-                          hunchentoot:cookies-out))
-            (push (cons "cookie" (mapcar (lambda (cookie)
-                                           (hunchentoot::stringify-cookie (cdr cookie)))
-                                         hunchentoot:cookies-out))
-                  instructions)))
-        ;; session
-        (when hunchentoot:*session*
-          (with-slots (hunchentoot::session-data) hunchentoot:*session*
-            (when hunchentoot::session-data
-              (push (list "session" (mapcar (lambda (data) (list (car data) (cdr data)))
-                                            hunchentoot::session-data))
-                    instructions))))
-        (if (listp new-page)
-            ;; redirect or some other custom instruction
-            (push new-page instructions)
-            ;; dom instructions
-            (let ((new-page (strip (parse new-page))))
-              (setq instructions
-                    (append (diff-dom previous-page new-page)
-                            instructions))
-              (setf (cadr (gethash *socket* *clients*)) new-page))))
-      (send socket (jojo:to-json instructions))))))
+        (setf (slot-value hunchentoot:*request* 'hunchentoot:get-parameters) temp-params))
+      ;; generate page and instructions
+      (let ((new-page (funcall handler))
+            (instructions (list)))
+        (when (= 200 (hunchentoot:return-code hunchentoot:*reply*))
+          ;; cookies
+          (with-slots (hunchentoot:cookies-out) hunchentoot:*reply*
+            (when hunchentoot:cookies-out
+              (setf (slot-value hunchentoot:*request* 'hunchentoot:cookies-in)
+                    (mapcar (lambda (cookie)
+                              (cons (car cookie)
+                                    (slot-value (cdr cookie) 'hunchentoot::value)))
+                            hunchentoot:cookies-out))
+              (push (cons "cookie" (mapcar (lambda (cookie)
+                                             (hunchentoot::stringify-cookie (cdr cookie)))
+                                           hunchentoot:cookies-out))
+                    instructions)))
+          ;; session
+          (when hunchentoot:*session*
+            (with-slots (hunchentoot::session-data) hunchentoot:*session*
+              (when hunchentoot::session-data
+                (push (list "session" (mapcar (lambda (data) (list (car data) (cdr data)))
+                                              hunchentoot::session-data))
+                      instructions))))
+          (if (listp new-page)
+              ;; redirect or some other custom instruction
+              (push new-page instructions)
+              ;; dom instructions
+              (let ((new-page (strip (parse new-page))))
+                (setq instructions
+                      (append (diff-dom previous-page new-page)
+                              instructions))
+                (setf (cadr (gethash *socket* *clients*)) new-page))))
+        (clws:write-to-client-text socket (jojo:to-json instructions))))))
 
-(defun socket-handler (socket message)
-  ;; first connection
+(defclass issr-resource (clws:ws-resource) ())
+(defmethod resource-client-connected ((resource issr-resource) socket) t)
+(defmethod clws:resource-client-disconnected ((resource issr-resource) socket)
+  (remhash socket *clients*))
+(defmethod clws:resource-received-text ((resource issr-resource) socket message)
   (if (str:starts-with-p "id:" message)
       (let* ((id (parse-integer (subseq message 3)))
              (info (gethash id *clients*)))
@@ -268,42 +273,40 @@ Create any files necessary."
               (remhash id *clients*))
             (progn
               (warn "Uhhhhm, id:~a doesn't exist.~%" id)
-              (return-from socket-handler))))
+              (return-from clws:resource-received-text))))
       ;; giving parameters to update page
       (if (and (gethash socket *clients*)
                (or (str:starts-with-p "?" message)
                    (str:starts-with-p "post:" message)))
           (rr socket message)
           (warn "Suspicious websoket connection from ~a.~%" socket))))
+(clws:register-global-resource
+ "/" (make-instance 'issr-resource)
+ #'clws:any-origin)
+(bordeaux-threads:make-thread
+ (lambda ()
+   (clws:run-resource-listener
+    (clws:find-global-resource "/")))
+ :name "resource listener for issr")
 
-(defun socket-server-handler (env)
-  (let ((socket (make-server env)))
-    (on :message socket (lambda (message) (socket-handler socket message)))
-    (on :close socket
-        (lambda (&key code reason) (declare (ignore code reason))
-          (remhash socket *clients*)))
-    (lambda (responder) (declare (ignore responder))
-      (start-connection socket))))
+(defmacro start (acceptor-or-servers &key ws-port)
+  `(progn
+     (when ,ws-port (setq *ws-port* ,ws-port))
+     (unless *ws-port* (setq *ws-port* 4433))
+     ,(let ((servers `(list (hunchentoot:start ,acceptor-or-servers)
+                            (bordeaux-threads:make-thread
+                             (lambda () (clws:run-server *ws-port*))
+                             :name "issr-ws-server"))))
+        (setq hunchentoot:*acceptor* (first servers))
+        (if (symbolp acceptor-or-servers)
+            `(setf ,acceptor-or-servers ,servers)
+            servers))))
 
-(defun start (acceptor-or-servers
-              &key (ws-port 5000)
-                (address "0.0.0.0")
-                (debug t) silent (use-thread t)
-                (use-default-middlewares t) &allow-other-keys)
-  (setq *ws-port* ws-port)
-  (if (listp acceptor-or-servers)
-      (list (hunchentoot:start (car acceptor-or-servers))
-            (clack:clackup (cadr acceptor-or-servers)))
-      (list (hunchentoot:start acceptor-or-servers)
-            (clack:clackup #'socket-server-handler
-                           :server :hunchentoot :port ws-port
-                           :address address :debug debug :silent silent
-                           :use-thread use-thread :use-default-middlewares use-default-middlewares))))
-
-(defun stop (servers)
-  (clack:stop (cadr servers))
-  (list (hunchentoot:stop (car servers))
-        (cadr servers)))
+(defmacro stop (servers)
+  `(progn
+     (bordeaux-threads:destroy-thread (second ,servers))
+     (setq hunchentoot:*acceptor* nil)
+     (setf ,servers (hunchentoot:stop (first ,servers)))))
 
 (defmacro redirect (target)
   `(if *socket*
