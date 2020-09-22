@@ -60,7 +60,7 @@ Same functionality as the previous example, but using [[https://github.com/inter
     <!-- Comma and ,@ are to run Lisp code and dump the result into HTML -->
     <!-- ,@ is to dump a list rather than a value -->
     ,@(loop for n from 1 to x 
-        collect <li>,(progn n)<li>)
+        collect <li>,(progn n)</li>)
   </ul>
   <button onclick="rr(this)" name="x" value=(+ x 1)>add</button>
 #+END_SRC
