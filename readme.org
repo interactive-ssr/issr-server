@@ -63,6 +63,8 @@ Define Easy Handler with ISSR
        </head>
        <body>
          <ul>
+           <!-- Comma and ,@ are to run Lisp code and dump the result into HTML -->
+           <!-- ,@ is to dump a list rather than a value -->
            ,@(loop for n from 1 to x
                collect <li>,(progn n)</li>)
          </ul>
