@@ -268,8 +268,7 @@ Create any files necessary."
              (remhash id *clients*))
            (progn
              (warn "Uhhhhm, id:~a doesn't exist.~%" id)
-             (clws:write-to-client-close socket :message (format nil "~a is not a valid id.~%" id))
-             (return-from clws:resource-received-text)))))
+             (clws:write-to-client-close socket :message (format nil "~a is not a valid id.~%" id))))))
     ;; reconnecting
     ((str:starts-with-p "http:" message)
      (let* ((state (jojo:parse (subseq message 5) :as :hash-table))
@@ -300,11 +299,13 @@ Create any files necessary."
        (setf (slot-value request 'hunchentoot:get-parameters)
              (handle-post-data (gethash "params" state)))))
     ;; giving parameters to update page
-    (:else
-     (if (and (gethash socket *clients*)
+    ((and (gethash socket *clients*)
               (or (str:starts-with-p "?" message)
                   (str:starts-with-p "post:" message)))
-         (rr socket message)))))
+         (rr socket message))
+    (:else
+     (clws:write-to-client-close socket :message (format nil "Wrong format.~%"))
+     (format t (warn "Suspicious websoket connection from ~a.~%" socket)))))
 (clws:register-global-resource
  "/" (make-instance 'issr-resource)
  #'clws:any-origin)
