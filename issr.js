@@ -48,12 +48,6 @@ function update (instructions) {
                 document.cookie = instructions[i];
             }
             break;}
-        case "session": {
-            for (let i = 1; i < instruction.length; ++i) {
-                sessionStorage.setItem(instruction[i][0],
-                                       instruction[i][1]);
-            }
-            break;}
         case "redirect": {
             document.location = instruction[1];
             break;}
