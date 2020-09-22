@@ -218,10 +218,10 @@ function querystring (data) {
     return Object.keys(data).map(function (name) {
         if (typeof data[name] === "object") {
             return data[name].map(function (value) {
-                return `${encodeURI(name)}=${encodeURI(value)}`;
+                return `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
             }).join("&");
         } else {
-            return `${encodeURI(name)}=${encodeURI(data[name])}`;
+            return `${encodeURIComponent(name)}=${encodeURIComponent(data[name])}`;
         }
     }).join("&");
 }
