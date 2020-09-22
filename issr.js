@@ -45,7 +45,7 @@ function update (instructions) {
             break;}
         case "cookie": {
             for (let i = 1; i < instruction.length; ++i) {
-                document.cookie = instructions[i];
+                document.cookie = instruction[i];
             }
             break;}
         case "redirect": {
@@ -168,17 +168,7 @@ async function rr (...objs) {
         let loc = location.href.toString(), host = location.host,
             state = {uri: loc.substring(loc.indexOf(host) + host.length),
                      page: "<!doctype html>" + document.documentElement.outerHTML,
-                     session: Object.keys(sessionStorage)
-                     .map(function (key) {
-                         return [key, sessionStorage.getItem(key)];
-                     }),
-                     cookies: document.cookie?
-                     document.cookie.split("; ")
-                     .map(function (cookie) {
-                         return cookie.split("=").map(decodeURI);
-                     }):[],
                      params: previousdata};
-        console.log(state);
         socket.onopen = function (event) {
             socket.send("http:" + JSON.stringify(state));
             socket.send(params);
