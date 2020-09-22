@@ -54,7 +54,6 @@ Define Easy Handler with ISSR
     (write-html
      <html>
        <head>
-         <link rel="stylesheet" href="/site.css" />
          <script src="/issr.js"></script>
          <script noupdate="t">
            ,(format nil "setup(~a, ~a)" *id* *ws-port*)
