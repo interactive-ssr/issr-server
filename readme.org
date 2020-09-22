@@ -39,3 +39,35 @@ Now you can use ~define-easy-handler~ just like you would in hunchentoot. Inside
 - ~*first-time*~: ~t~ if it is the first HTTP connection of this client.
 - ~*socket*:~ The current connection. It is ~nil~ on the first HTTP connection.
 - ~*clients*~: A hash-table of all connections.
+
+* Example with Easy Handler and Markup
+
+Enable Markup's HTML syntax.
+#+BEGIN_SRC lisp
+  (markup:enable-reader)
+#+END_SRC
+Define Easy Handler with ISSR
+#+BEGIN_SRC html
+  (define-easy-handler (example :uri "/example")
+      ((x :init-form "0"))
+    (setq x (parse-integer x))
+    (write-html
+     <html>
+       <head>
+         <link rel="stylesheet" href="/site.css" />
+         <script src="/issr.js"></script>
+         <script noupdate="t">
+           ,(format nil "setup(~a, ~a)" *id* *ws-port*)
+         </script>
+         <title>Easy Handler Example</title>
+       </head>
+       <body>
+         <ul>
+           ,@(loop for n from 1 to x
+               collect <li>,(progn n)</li>)
+         </ul>
+         <button onclick="rr(this)" name="x" value=(+ x 1)>add</button>
+         <button onclick="rr(this)" name="x" value=(max 0 (- x 1))>delete</button>
+       </body>
+     </html>))
+#+END_SRC
