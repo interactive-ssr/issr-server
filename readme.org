@@ -1,5 +1,5 @@
 #+title: Hunchenissr
-That is [[https://edicl.github.io/hunchentoot/#recompute-request-parameters][HUNCHENtoot]] ISSR. Make sure to see the [[https://github.com/interactive-ssr/js/blob/master/main.org][main readme]] for the ISSR project and [[https://github.com/interactive-ssr/js/blob/master/getting-started.org][setup issr.js]].
+That is [[https://edicl.github.io/hunchentoot/#recompute-request-parameters][HUNCHENtoot]] ISSR. Make sure to see the [[https://github.com/interactive-ssr/js/blob/master/main.org][main readme]] for the ISSR project and [[https://github.com/interactive-ssr/js/blob/master/getting-started.org][setup issr.js]]. ISSR allows you to make interactive web pages without writing client scripting; just include issr.js and generate some HTML in your server language (in the case of Hunchenissr: Common Lisp).
 
 * Getting Started
 First clone the repository where quicklisp can find it. You should have [[https://www.quicklisp.org/beta/][quicklisp]] installed too:
@@ -38,37 +38,52 @@ Now you can use ~define-easy-handler~ just like you would in hunchentoot. Inside
 - ~*ws-port*~: The port websockets connect on. Also used in setup of issr.js.
 - ~*first-time*~: ~t~ if it is the first HTTP connection of this client.
 - ~*socket*:~ The current connection. It is ~nil~ on the first HTTP connection.
-- ~*clients*~: A hash-table of all connections.
+- ~*clients*~: A hash-table of all connections. Key: sockets, value ~(hunchentoot-request, previous virtual DOM)~
+
+Mostly everything works just like regular Hunchentoot with the following caveats:
+- Cookies not sent over and initial HTTP request must be ~:http-only nil~ or they will not be saved.
+- Since session uses cookie, if you want to use session, then you must call ~(start-session)~ on the initial HTTP request because you don't want the session cookie being not HTTP only.
+- You have the ~hunchenissr::rr~ function which can Re-Render a different client with some parameters (optional). This allows the advantages of websockets without the complexity of actually programming any. This doesn't cover all the websocket use cases, but it covers some basic ones.
 
 * Example with Easy Handler and Markup
-
-Enable Markup's HTML syntax.
+Enable Markup's HTML syntax. You could use something like CL-WHO if you want too instead.
 #+BEGIN_SRC lisp
   (markup:enable-reader)
 #+END_SRC
-Define Easy Handler with ISSR
+Define Easy Handler with ISSR.
+
+This example is just an unordered list of consecutive numbers. The "add" button makes the list longer, and the "delete" button makes the list shorter (minimum length is 0).
 #+BEGIN_SRC html
-  (define-easy-handler (example :uri "/example")
-      ((x :init-form "0"))
-    (setq x (parse-integer x))
-    (write-html
-     <html>
-       <head>
-         <script src="/issr.js"></script>
-         <script noupdate="t">
-           ,(format nil "setup(~a, ~a)" *id* *ws-port*)
-         </script>
-         <title>Easy Handler Example</title>
-       </head>
-       <body>
-         <ul>
-           <!-- Comma and ,@ are to run Lisp code and dump the result into HTML -->
-           <!-- ,@ is to dump a list rather than a value -->
-           ,@(loop for n from 1 to x
-               collect <li>,(progn n)</li>)
-         </ul>
-         <button onclick="rr(this)" name="x" value=(+ x 1)>add</button>
-         <button onclick="rr(this)" name="x" value=(max 0 (- x 1))>delete</button>
-       </body>
-     </html>))
+    (define-easy-handler (example :uri "/example")
+        ((x :init-form "0"))
+      (setq x (parse-integer x))
+      (write-html
+       <html>
+         <head>
+           <script src="/issr.js"></script>
+           <script noupdate="t">
+             ,(format nil "setup(~a, ~a)" *id* *ws-port*)
+           </script>
+           <title>Easy Handler Example</title>
+         </head>
+         <body>
+           <ul>
+             <!-- Comma and ,@ are to run Lisp code and dump the result into HTML -->
+             <!-- ,@ is to dump a list rather than a value -->
+             ,@(loop for n from 1 to x
+                 collect <li>,(progn n)</li>)
+           </ul>
+           <button onclick="rr(this)" name="x" value=(+ x 1)>
+             add
+           </button>
+           <button onclick="rr(this)" name="x" value=(max 0 (- x 1))>
+             delete
+           </button>
+         </body>
+       </html>))
 #+END_SRC
+
+* Issues
+If you find any bugs of have any issues (installing, using, questions) use the Github issue tracker.
+* Contact
+If you want to contact me about collaboration, licensing, implementing a new back-end, etc. You can use the email in hunchenissr.asd.
