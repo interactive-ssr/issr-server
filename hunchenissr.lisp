@@ -144,7 +144,7 @@ INDEX: (aref (children parent) INDEX) to get current node."
                 (:else
                  (diff-dom old-dom new-dom (+ index 1) indexes
                            (append instructions
-                                   (list (list "mod" (reverse (cons index indexes)) 0 "before"
+                                   (list (list "mod" (reverse (cons index indexes))
                                                (list "outerHTML" (serialize new-node nil))))))))))
            ;; update attrs then descend into children
            (:else
@@ -240,13 +240,6 @@ Create any files necessary."
                                              (hunchentoot::stringify-cookie (cdr cookie)))
                                            hunchentoot:cookies-out))
                     instructions)))
-          ;; session
-          (when hunchentoot:*session*
-            (with-slots (hunchentoot::session-data) hunchentoot:*session*
-              (when hunchentoot::session-data
-                (push (list "session" (mapcar (lambda (data) (list (car data) (cdr data)))
-                                              hunchentoot::session-data))
-                      instructions))))
           (if (listp new-page)
               ;; redirect or some other custom instruction
               (push new-page instructions)
@@ -263,30 +256,61 @@ Create any files necessary."
 (defmethod clws:resource-client-disconnected ((resource issr-resource) socket)
   (remhash socket *clients*))
 (defmethod clws:resource-received-text ((resource issr-resource) socket message)
-  (if (str:starts-with-p "id:" message)
-      (let* ((id (parse-integer (subseq message 3)))
-             (info (gethash id *clients*)))
-        (if info
-            (progn
-              (setf (gethash socket *clients*) info)
-              (format t "Connected to client with id:~a.~%" id)
-              (remhash id *clients*))
-            (progn
-              (warn "Uhhhhm, id:~a doesn't exist.~%" id)
-              (return-from clws:resource-received-text))))
-      ;; giving parameters to update page
-      (if (and (gethash socket *clients*)
-               (or (str:starts-with-p "?" message)
-                   (str:starts-with-p "post:" message)))
-          (rr socket message)
-          (warn "Suspicious websoket connection from ~a.~%" socket))))
+  (cond
+    ;; first connection
+    ((str:starts-with-p "id:" message)
+     (let* ((id (parse-integer (subseq message 3)))
+            (info (gethash id *clients*)))
+       (if info
+           (progn
+             (setf (gethash socket *clients*) info)
+             (format t "Connected to client with id:~a.~%" id)
+             (remhash id *clients*))
+           (progn
+             (warn "Uhhhhm, id:~a doesn't exist.~%" id)
+             (clws:write-to-client-close socket :message (format nil "~a is not a valid id.~%" id))
+             (return-from clws:resource-received-text)))))
+    ;; reconnecting
+    ((str:starts-with-p "http:" message)
+     (let* ((state (jojo:parse (subseq message 5) :as :hash-table))
+            (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
+            (request (make-instance
+                      'hunchentoot:request
+                      :headers-in (list (cons :user-agent
+                                              (gethash :user-agent (clws:client-connection-headers socket))))
+                      :uri (gethash "uri" state)
+                      :method :GET
+                      :acceptor hunchentoot:*acceptor*
+                      :remote-addr (clws:client-host socket)
+                      :headers-in nil)))
+       ;; set page
+       (setf (gethash socket *clients*)
+             (list request (strip (parse (gethash "page" state)))))
+       ;; set cookies
+       (setf (slot-value request 'hunchentoot:cookies-in)
+             (mapcar (lambda (cookie)
+                       (cons (hunchentoot:url-decode (first cookie))
+                             (hunchentoot:url-decode (second cookie))))
+                     (mapcar (lambda (cookie) (str:split "=" cookie))
+                             (str:split ";" (gethash :cookie (clws:client-connection-headers socket))))))
+       ;; restore session
+       (setf (slot-value request 'hunchentoot:session)
+             (hunchentoot:session-verify request))
+       ;; set parameters
+       (setf (slot-value request 'hunchentoot:get-parameters)
+             (handle-post-data (gethash "params" state)))))
+    ;; giving parameters to update page
+    (:else
+     (if (and (gethash socket *clients*)
+              (or (str:starts-with-p "?" message)
+                  (str:starts-with-p "post:" message)))
+         (rr socket message)))))
 (clws:register-global-resource
  "/" (make-instance 'issr-resource)
  #'clws:any-origin)
 (bordeaux-threads:make-thread
- (lambda ()
-   (clws:run-resource-listener
-    (clws:find-global-resource "/")))
+ (lambda () (clws:run-resource-listener
+        (clws:find-global-resource "/")))
  :name "resource listener for issr")
 
 (defmacro start (acceptor-or-servers &key ws-port)
