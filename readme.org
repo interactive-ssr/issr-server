@@ -46,7 +46,7 @@ Mostly everything works just like regular Hunchentoot with the following caveats
 - You have the ~hunchenissr::rr~ function which can Re-Render a different client with some parameters (optional). This allows the advantages of websockets without the complexity of actually programming any. This doesn't cover all the websocket use cases, but it covers some basic ones.
 
 * Example with Easy Handler and Markup
-Enable Markup's HTML syntax. You could use something like CL-WHO if you want too instead.
+Enable Markup's HTML syntax. You could use something like CL-WHO instead.
 #+BEGIN_SRC lisp
   (markup:enable-reader)
 #+END_SRC
