@@ -38,7 +38,7 @@ Now you can use ~define-easy-handler~ just like you would in hunchentoot. Inside
 - ~*ws-port*~: The port websockets connect on. Also used in setup of issr.js.
 - ~*first-time*~: ~t~ if it is the first HTTP connection of this client.
 - ~*socket*:~ The current connection. It is ~nil~ on the first HTTP connection.
-- ~*clients*~: A hash-table of all connections. Key: sockets, value ~(hunchentoot-request, previous virtual DOM)~
+- ~*clients*~: A hash-table of all connections. Key: sockets, Value: ~(list hunchentoot-request previous-virtual-dom)~
 
 Mostly everything works just like regular Hunchentoot with the following caveats:
 - Cookies not sent over and initial HTTP request must be ~:http-only nil~ or they will not be saved.
