@@ -14,7 +14,7 @@ Summary for the web developer:
 * Concept and Basic Examples
 Without ISSR, you would only generate the HTML for the initial page and have a mix of Javascript DOM manipulation and [[https://www.w3schools.com/xml/ajax_intro.asp][AJAX]] to update the page thereafter. With ISSR, you generate your HTML based on a set of parameters ([[https://en.wikipedia.org/wiki/Query_string][query string]]) and the HTML will be generated to be what the page should look like. This has the added benefit of making any state of the web page be accessible by a custom [[https://en.wikipedia.org/wiki/URL][URL]], just the way it is supposed to be. 
 
-The query string is generated the same way the [[https://www.w3schools.com/tags/tag_form.asp][form-tag]] would do it. It takes all elements that have a ~name~ attribute and puts their ~name~ and ~value~ attributes in an string like so: ~name1=value1&name2=value2&name3=value3~. The exception is when the action that submits the form (attribute ~type="submit"~ ) has a name. The ISSR equivalent is calling ~rr(this)~. In both cases the name of the current tag (or object) will unique in the query string.
+The query string is generated the same way the [[https://www.w3schools.com/tags/tag_form.asp][form tag]] would do it. It takes all elements that have a ~name~ attribute and puts their ~name~ and ~value~ attributes in an string like so: ~name1=value1&name2=value2&name3=value3~. The exception is when the action that submits the form (attribute ~[type="submit"]~ ) has a name. The ISSR equivalent is calling ~rr(this)~. In both cases the name of the current tag (or object) will unique in the query string.
 
 ** Example Query String Generation
 #+BEGIN_SRC html
