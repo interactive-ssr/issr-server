@@ -28,7 +28,11 @@ function update (instructions) {
         case "mod": {
             let node = descendant(instruction[1]);
             for (let i = 2; i < instruction.length; ++i) {
-                node[instruction[i][0]] = instruction[i][1];
+                if (instruction[i][0].indexOf("HTML") != -1) {
+                    node[instruction[i][0]] = instruction[i][1];
+                } else {
+                    node.setAttribute([instruction[i][0]], instruction[i][1])
+                }
             }
             break;}
         case "delete": {
