@@ -170,9 +170,10 @@ async function rr (...objs) {
         };
         jsonfiles(previousdata);
         let loc = location.href.toString(), host = location.host,
-            state = {uri: loc.substring(loc.indexOf(host) + host.length),
+            state = {uri: loc.substring(loc.indexOf(host) + host.length, loc.indexOf("?")),
                      page: "<!doctype html>" + document.documentElement.outerHTML,
-                     params: previousdata};
+                     params: previousdata,
+                     query: loc.substring(loc.indexOf("?") + 1)};
         socket.onopen = function (event) {
             socket.send("http:" + JSON.stringify(state));
             socket.send(params);
