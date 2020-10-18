@@ -29,7 +29,7 @@ No leading zeros."
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
      (let* ((*id* (generate-id))
-            (page (block nil ,@body)))
+            (page (block issr-redirect ,@body)))
        (unless *socket*
          (setf (gethash *id* *clients*)
                (list hunchentoot:*request* (strip (parse page)))))
@@ -305,7 +305,7 @@ Create any files necessary."
          (rr socket message))
     (:else
      (clws:write-to-client-close socket :message (format nil "Wrong format.~%"))
-     (format t (warn "Suspicious websoket connection from ~a.~%" socket)))))
+     (warn "Suspicious websoket connection from ~a.~%" socket))))
 (clws:register-global-resource
  "/" (make-instance 'issr-resource)
  #'clws:any-origin)
@@ -335,5 +335,5 @@ Create any files necessary."
 
 (defmacro redirect (target)
   `(if *socket*
-       (return (list "redirect" ,target))
+       (return-from issr-redirect (list "redirect" ,target))
        (hunchentoot:redirect ,target)))
