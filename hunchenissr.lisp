@@ -1,5 +1,14 @@
 (in-package #:hunchenissr)
 
+(defvar on-connect-hook nil
+  "Run each function in `on-connect-hook' after a socket connects.
+Each function should take one socket as an argument.")
+
+(defvar on-disconnect-hook nil
+  "Run each function in `on-disconnect-hook' after a socket connects.
+Each function should take one socket as an argument. This hook is
+called right before the socket is removed from `*clients*'")
+
 (defvar *ws-port* nil
   "The port to host the websocket server on.")
 
@@ -254,6 +263,8 @@ Create any files necessary."
 (defclass issr-resource (clws:ws-resource) ())
 (defmethod resource-client-connected ((resource issr-resource) socket) t)
 (defmethod clws:resource-client-disconnected ((resource issr-resource) socket)
+  (dolist (fun on-disconnect-hook)
+    (funcall fun socket))
   (remhash socket *clients*))
 (defmethod clws:resource-received-text ((resource issr-resource) socket message)
   (cond
@@ -265,7 +276,9 @@ Create any files necessary."
            (progn
              (setf (gethash socket *clients*) info)
              (format t "Connected to client with id:~a.~%" id)
-             (remhash id *clients*))
+             (remhash id *clients*)
+             (dolist (fun on-connect-hook)
+               (funcall fun socket)))
            (progn
              (warn "Uhhhhm, id:~a doesn't exist.~%" id)
              (clws:write-to-client-close socket :message (format nil "~a is not a valid id.~%" id))))))
@@ -296,8 +309,16 @@ Create any files necessary."
        (setf (slot-value request 'hunchentoot:session)
              (hunchentoot:session-verify request))
        ;; set parameters
+       ;; first set url parameters
+       (setf (slot-value request 'hunchentoot:query-string)
+             (gethash "query" state))
+       (hunchentoot:recompute-request-parameters :request request)
+       ;; set issr parameters
        (setf (slot-value request 'hunchentoot:get-parameters)
-             (handle-post-data (gethash "params" state)))))
+             (append (slot-value request 'hunchentoot:get-parameters)
+                     (handle-post-data (gethash "params" state))))
+       (dolist (fun on-connect-hook)
+         (funcall fun socket))))
     ;; giving parameters to update page
     ((and (gethash socket *clients*)
               (or (str:starts-with-p "?" message)
