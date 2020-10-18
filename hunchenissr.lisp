@@ -358,3 +358,21 @@ Create any files necessary."
   `(if *socket*
        (return-from issr-redirect (list "redirect" ,target))
        (hunchentoot:redirect ,target)))
+
+(defvar *gc-leeway* 15
+  "The number of seconds a websocket has to connect after being noticed before
+being deleted.")
+
+(defvar *gc-frequency* 60
+  "The number of seconds between garbage collections.")
+
+;; garbage collection of unconnected websockets
+(bordeaux-threads:make-thread
+ (lambda ()
+   (dolist (client (hash-keys *clients*))
+     (when (numberp client)
+       (sleep *gc-leeway*)
+       (when (gethash client *clients*)
+         (remhash client *clients*))))
+   (sleep *gc-frequency*))
+ :name "issr-gc")
