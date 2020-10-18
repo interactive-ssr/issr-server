@@ -30,8 +30,10 @@ function update (instructions) {
             for (let i = 2; i < instruction.length; ++i) {
                 if (instruction[i][0].indexOf("HTML") != -1) {
                     node[instruction[i][0]] = instruction[i][1];
+                } else if ("" == instruction[i][1]) {
+                    node.removeAttribute([instruction[i][0]]);
                 } else {
-                    node.setAttribute([instruction[i][0]], instruction[i][1])
+                    node.setAttribute([instruction[i][0]], instruction[i][1]);
                 }
             }
             break;}
@@ -88,6 +90,31 @@ function setup (id, port, protocol) {
     };
 }
 
+async function getvalue (obj) {
+    let value = obj.value || (obj.value == ""? "" : obj.getAttribute("value"));
+    if (obj.type === "radio" ||
+        obj.type === "checkbox") {
+        if (!obj.checked) {
+            value = "";
+        }
+    } else if (obj.type === "file") {
+        value = obj.files;
+        if (value.length > 0) {
+            for (let file of value) {
+                if (!file.content) {
+                    let arrayBuffer = await new Response(file).arrayBuffer();
+                    file.content = btoa(
+                        new Uint8Array(arrayBuffer).reduce(function(data, byte) {
+                            return data + String.fromCharCode(byte);
+                        }, "")
+                    );
+                }
+            }
+        }
+    }
+    return value
+}
+
 let previousdata = {};
 /**
  * rr - re-render
@@ -102,46 +129,18 @@ async function rr (...objs) {
         data = {},
         taken = function (name) {
             for (let obj of objs) {
-                if (name === obj.name) {
+                if (name === (obj.name || (obj.value == ""? "" : obj.getAttribute("name")))) {
                     return true;
                 }
             }
             return false;
         };
     for (let element of elements) {
-        if (element.disabled || taken(element.name)) {
+        let name = element.name || element.getAttribute("name");
+        if (element.disabled || taken(name)) {
             continue;
         }
-        let name = element.name,
-            value = element.value;
-        switch (element.type) {
-        case "radio":
-            if (!element.checked) {
-                continue;
-            }
-            break;
-        case "checkbox":
-            if (!element.checked) {
-                value = "";
-            }
-            break;
-        case "file":
-            value = element.files;
-            if (value.length == 0) {
-                continue;
-            }
-            for (let file of value) {
-                if (!file.content) {
-                    let arrayBuffer = await new Response(file).arrayBuffer();
-                    file.content = btoa(
-                        new Uint8Array(arrayBuffer).reduce(function(data, byte) {
-                            return data + String.fromCharCode(byte);
-                        }, "")
-                    );
-                }
-            }
-            break;
-        }
+        let value = await getvalue(element);
         if (typeof data[name] === "undefined") {
             // set value
             data[name] = value;
@@ -154,7 +153,7 @@ async function rr (...objs) {
         }
     }
     for (let obj of objs) {
-        data[obj.name] = obj.value;
+        data[(obj.name) || obj.getAttribute("name")] = await getvalue(obj);
     }
     // generate params based on new and previous data
     let changed = keepchanged(previousdata, data),
