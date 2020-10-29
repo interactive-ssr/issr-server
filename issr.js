@@ -28,12 +28,13 @@ function update (instructions) {
         case "mod": {
             let node = descendant(instruction[1]);
             for (let i = 2; i < instruction.length; ++i) {
-                if (instruction[i][0].indexOf("HTML") != -1) {
-                    node[instruction[i][0]] = instruction[i][1];
-                } else if ("" == instruction[i][1]) {
-                    node.removeAttribute([instruction[i][0]]);
-                } else {
-                    node.setAttribute([instruction[i][0]], instruction[i][1]);
+                node[instruction[i][0]] = instruction[i][1];
+                if (instruction[i][0].indexOf("HTML") < 0) {
+                    if ("" == instruction[i][1]) {
+                        node.removeAttribute([instruction[i][0]]);
+                    } else {
+                        node.setAttribute([instruction[i][0]], instruction[i][1]);
+                    }
                 }
             }
             break;}
