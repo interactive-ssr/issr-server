@@ -45,6 +45,8 @@ Mostly everything works just like regular Hunchentoot with the following caveats
 - Since session uses cookie, if you want to use session, then you must call ~(start-session)~ on the initial HTTP request because you don't want the session cookie being not HTTP only.
 - You have the ~hunchenissr::rr~ function which can Re-Render a different client with some parameters (optional). This allows the advantages of websockets without the complexity of actually programming any. This doesn't cover all the websocket use cases, but it covers some basic ones.
 
+In addition to the back-end ~hunchenissr:rr~ function, there are two hooks: ~on-connect-hook~ and ~on-disconnect-hook~. These hooks work like hooks in Emacs: they are each a list of functions; the functions should take a socket as their only parameter. Use ~pushnew~ to add functions to the hooks (best not to use anonymous functions). All functions in ~on-connect-hook~ are called right after a socket connects, so it's request and previous page will be present in ~*clients*~. All functions in ~on-disconnect-hook~ are run right *before* the socket disconnects so its request is also available in ~*clients*~.
+
 * Example with Easy Handler and Markup
 Enable Markup's HTML syntax. You could use something like CL-WHO instead.
 #+BEGIN_SRC lisp
