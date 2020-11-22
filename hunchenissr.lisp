@@ -27,6 +27,10 @@ Do NOT set this globally; only bind dymaically.")
   "T if it is the first time a connection is being made.
 Do NOT set this globally; only bind dynamically.")
 
+(defun hash-keys (hash-table)
+  (loop :for key :being :the :hash-keys :of hash-table
+        :collect key))
+
 (defun generate-id (&optional (length 9) (not-these (hash-keys *clients*)))
   "Genereate a random number that has LENGTH digits and is not a member of NOT-THESE.
 No leading zeros."
@@ -55,10 +59,6 @@ No leading zeros."
          (setf (gethash *id* *clients*)
                (list hunchentoot:*request* (clean (parse page)))))
        page)))
-
-(defun hash-keys (hash-table)
-  (loop :for key :being :the :hash-keys :of hash-table
-        :collect key))
 
 (defun descendant (node indexes)
   "Return the dom node which is the child of ancestor NODE.
@@ -342,34 +342,6 @@ Create any files necessary."
 (clws:register-global-resource
  "/" (make-instance 'issr-resource)
  #'clws:any-origin)
-(bordeaux-threads:make-thread
- (lambda () (clws:run-resource-listener
-        (clws:find-global-resource "/")))
- :name "resource listener for issr")
-
-(defmacro start (acceptor-or-servers &key ws-port)
-  `(progn
-     (when ,ws-port (setq *ws-port* ,ws-port))
-     (unless *ws-port* (setq *ws-port* 4433))
-     ,(let ((servers `(list (hunchentoot:start ,acceptor-or-servers)
-                            (bordeaux-threads:make-thread
-                             (lambda () (clws:run-server *ws-port*))
-                             :name "issr-ws-server"))))
-        (setq hunchentoot:*acceptor* (first servers))
-        (if (symbolp acceptor-or-servers)
-            `(setf ,acceptor-or-servers ,servers)
-            servers))))
-
-(defmacro stop (servers)
-  `(progn
-     (bordeaux-threads:destroy-thread (second ,servers))
-     (setq hunchentoot:*acceptor* nil)
-     (setf ,servers (hunchentoot:stop (first ,servers)))))
-
-(defmacro redirect (target)
-  `(if *socket*
-       (return-from issr-redirect (list "redirect" ,target))
-       (hunchentoot:redirect ,target)))
 
 (defvar *gc-leeway* 15
   "The number of seconds a websocket has to connect after being noticed before
@@ -378,13 +350,57 @@ being deleted.")
 (defvar *gc-frequency* 60
   "The number of seconds between garbage collections.")
 
-;; garbage collection of unconnected websockets
-(bordeaux-threads:make-thread
- (lambda ()
-   (dolist (client (hash-keys *clients*))
-     (when (numberp client)
-       (sleep *gc-leeway*)
-       (when (gethash client *clients*)
-         (remhash client *clients*))))
-   (sleep *gc-frequency*))
- :name "issr-gc")
+(defconstant issr-gc "issr-gc"
+  "The name of the garbage collection thread.")
+
+(defconstant issr-rc "issr-rc"
+  "The name of the resource listender thread.")
+
+(defmacro start (acceptor-or-servers &key ws-port)
+  `(progn
+     (when ,ws-port (setq *ws-port* ,ws-port))
+     (unless *ws-port* (setq *ws-port* 4433))
+     ;; garbage collection of unconnected websockets
+     (bordeaux-threads:make-thread
+      (lambda ()
+        (dolist (client (hash-keys *clients*))
+          (when (numberp client)
+            (sleep *gc-leeway*)
+            (when (gethash client *clients*)
+              (remhash client *clients*))))
+        (sleep *gc-frequency*))
+      :name issr-gc)
+     ;; resource listener
+     (bordeaux-threads:make-thread
+      (lambda () (clws:run-resource-listener
+             (clws:find-global-resource "/")))
+      :name issr-rc)
+     ,(let ((servers `(list (hunchentoot:start ,acceptor-or-servers)
+                            (bordeaux-threads:make-thread
+                             (lambda () (clws:run-server *ws-port*))
+                             :name "issr-ws-server"))))
+        (setq hunchentoot:*acceptor* (first servers))
+        ;; return and set the server
+        (if (symbolp acceptor-or-servers)
+            `(setf ,acceptor-or-servers ,servers)
+            servers))))
+
+(defmacro stop (servers)
+  `(progn
+     (bordeaux-threads:destroy-thread (second ,servers))
+     (setq hunchentoot:*acceptor* nil)
+     ;; stop garbage collection
+     (bt:destroy-thread (find issr-gc (bt:all-threads)
+                              :key #'bt:thread-name
+                              :test #'string=))
+     ;; stop resource listening
+     (bt:destroy-thread (find issr-rc (bt:all-threads)
+                              :key #'bt:thread-name
+                              :test #'string=))
+     ;; return and set server
+     (setf ,servers (hunchentoot:stop (first ,servers)))))
+
+(defmacro redirect (target)
+  `(if *socket*
+       (return-from issr-redirect (list "redirect" ,target))
+       (hunchentoot:redirect ,target)))
