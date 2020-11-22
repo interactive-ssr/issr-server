@@ -35,13 +35,25 @@ No leading zeros."
         (generate-id length not-these)
         id)))
 
+(defun clean (node)
+  (loop for index from (- (length (children node)) 1) downto 0
+        for child = (aref (children node) index)
+        do (cond ((or (comment-p child)
+                      (and (text-node-p child)
+                           (str:emptyp (str:trim (text child)))))
+                  (remove-child child))
+                 ((and (has-child-nodes child)
+                       (string/= (tag-name child) "pre"))
+                  (clean child))))
+  node)
+
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
      (let* ((*id* (generate-id))
             (page (block issr-redirect ,@body)))
        (unless *socket*
          (setf (gethash *id* *clients*)
-               (list hunchentoot:*request* (strip (parse page)))))
+               (list hunchentoot:*request* (clean (parse page)))))
        page)))
 
 (defun hash-keys (hash-table)
@@ -253,7 +265,7 @@ Create any files necessary."
               ;; redirect or some other custom instruction
               (push new-page instructions)
               ;; dom instructions
-              (let ((new-page (strip (parse new-page))))
+              (let ((new-page (clean (parse new-page))))
                 (setq instructions
                       (append (diff-dom previous-page new-page)
                               instructions))
@@ -297,7 +309,7 @@ Create any files necessary."
                       :headers-in nil)))
        ;; set page
        (setf (gethash socket *clients*)
-             (list request (strip (parse (gethash "page" state)))))
+             (list request (clean (parse (gethash "page" state)))))
        ;; set cookies
        (setf (slot-value request 'hunchentoot:cookies-in)
              (mapcar (lambda (cookie)
