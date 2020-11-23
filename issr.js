@@ -240,9 +240,10 @@ function clean (node) {
         let child = node.childNodes[n];
         if (child.nodeType == 8 || (child.nodeType == 3 && !/\S/.test(child.nodeValue))) {
             node.removeChild(child);
-        } else if (child.nodeType == 1) {
+        } else if (child.nodeType == 1 && child.tagName !== "PRE") {
             clean(child);
         }
     }
 }
 document.addEventListener("DOMContentLoaded", function () { clean(document); });
+
