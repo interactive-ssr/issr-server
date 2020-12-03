@@ -153,12 +153,15 @@ async function rr (...objs) {
             data[name] = [data[name], value];
         }
     }
-    for (let obj of objs) {
-        data[(obj.name) || obj.getAttribute("name")] = await getvalue(obj);
-    }
     // generate params based on new and previous data
-    let changed = keepchanged(previousdata, data),
-        params = jsonfiles(changed)? "post:" + JSON.stringify(changed) : "?" + querystring(changed);
+    let changed = keepchanged(previousdata, data);
+    for (let obj of objs) {     // always ensure the data of objs gets sent
+        let name = (obj.name) || obj.getAttribute("name");
+        changed[name] = data[name] = await getvalue(obj);
+    }
+    let params = jsonfiles(changed)?
+        "post:" + JSON.stringify(changed):
+        "?" + querystring(changed);
     previousdata = data;
     if (!socket) {
         console.error("Socket is not set up yet; try calling setup before calling rr.");
