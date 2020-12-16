@@ -93,3 +93,148 @@ Clicking the picture will produce produce include ~smap=x,y~ in the query string
   </map>
 #+END_SRC
 Clicking the top left quadrant of the picture will include ~cmap=top-left~ in the query string. See [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/area][area-tag]] for more options to define differently shaped areas.
+
+* Reusable Components
+The trick to keeping state is to require reusable components to have the ~id~ attribute. This not only make it unique, but it gives us a string to use as a GET parameter or session variable. The Get parameter can remember any state required by the component. The reason this works is because it is not required for the web programmer to specify GET parameters. The person using a Component doesn't need to worry about the existence of this variable (only not to use it for something else).
+
+** Tab Box
+[[https://github.com/interactive-ssr/client/blob/master/tab-box.png]]
+
+The tab-box and tab tags will never make it to the client.
+#+BEGIN_SRC html
+  <tab-box id="tb-one">
+    <tab title="Lorem">
+      <p>
+        Sit amet...
+      </p>
+    </tab>
+    <tab title="Ipsum">
+      <p>
+        Nullam...
+      </p>
+    </tab>
+    <tab title="Dolor">
+      <p>
+        Pellentesque...
+      </p>
+    </tab>
+  </tab-box>
+#+END_SRC
+For this example will use the [[https://github.com/interactive-ssr/hunchenissr][Hunchenissr]] implementation of ISSR and the [[https://github.com/moderninterpreters/markup][markup]] library for HTML generation.
+
+First, we make the tab tag. The only purpose of this is to not make the user type a colon and ensure that the ~title~ attribute is present because the ~title~ text will be used for the tab buttons.
+#+BEGIN_SRC lisp
+  (deftag tab (children &key (title (error "tab must have a title")))
+    <:tab title=title >
+      ,@children
+    </:tab>)
+#+END_SRC
+Second, we make the tab-box tag (~id~ attribute required), 
+ #+BEGIN_SRC lisp
+   (deftag tab-box (children &key (id (error "tab-box must have an id"))
+                    title class style)
+ #+END_SRC
+ Get list of tab titles, and decide the active one based on the GET parameter.
+#+BEGIN_SRC lisp
+  (let* ((tabs (mapcar
+                ;; get the tag titles
+                (lambda (tab)
+                  (cdr (assoc "title"
+                              (xml-tag-attributes tab)
+                              :test #'string=)))
+                (remove-if-not
+                 ;; remove whitespace and comment elements
+                 (lambda (child)
+                   (typep child 'xml-tag))
+                 children)))
+         (active (or (get-parameter id) (first tabs))))
+#+END_SRC
+Let ~id~ ~class~ and ~style~ attributes fall through to the encompassing ~div~ and put a bold ~title~ if it was provided.
+#+BEGIN_SRC html
+  <div id=id class=(str:join " " (cons "tab-box" class))
+       style=style >
+    ,(when title
+       <merge-tag>
+         <b>,(progn title)</b>
+         <br/>
+       </merge-tag>)
+#+END_SRC
+Put a ~nav~ tag to hold the tab buttons. The ~action~ attribute will become the GET parameter with the value of whatever tab is selected. The ~name~ attribute will "remember" which tab we are on when we are not clicking tabs. the ~onclick~ will send the ~value~ to the server through the ~action~ attribute (which is whatever id is id).
+#+BEGIN_SRC html
+  <nav>
+    ,@(mapcar
+       (lambda (tab)
+         <button action=id
+                 name=(when (string= tab active)
+                        id)
+                 value=tab
+                 selected=(string= tab active)
+                 onclick="rr(this)">
+           ,(progn tab)
+         </button>)
+       tabs)
+  </nav>
+#+END_SRC
+Dump out the children of the ~tab~ tags out wrapped in ~div~ ~class~ "tab-content", so we can use CSS to chose which ones to hide and show. 
+#+BEGIN_SRC lisp
+    ,@(mapcar
+       (lambda (tab child)
+         <div selected=(string= tab active)
+              class="tab-content">
+           ,@(xml-tag-children child)
+         </div>)
+       tabs
+       (remove-if-not
+        ;; remove whitespace or comment elements
+        (lambda (child)
+          (typep child 'xml-tag))
+        children))
+  </div>))
+#+END_SRC
+Lastly, add some CSS to hide the tab content that is not selected. Also lots of stuff to make it look pretty. Some dynamic variables to add customization can't hurt either. The most important thing is the ~display: none~ and ~display: block~.
+#+BEGIN_SRC css
+  .tab-box {
+      --border-color: black;
+      --background-color: white;
+      --tab-color: lightgrey;
+      background: var(--background-color);
+      padding: .7rem;
+      width: fit-content;
+      margin: .5rem;
+      border-radius: 5px;
+      box-shadow: 0 0 3px black;
+  }
+  .tab-box > nav {
+      color: inherit;
+      padding: 0 .5rem 0 .5rem;
+      border-bottom: 1px solid var(--border-color);
+  }
+  .tab-box > b {font-size: 1.3rem;}
+  .tab-box > nav > button {
+      color:inherit;
+      position: relative;
+      bottom: -1px;
+      margin-bottom: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 6px 6px 0 0;
+      background-color: var(--tab-color);
+      cursor: pointer;
+  }
+  .tab-box > nav > button:focus {outline: none;}
+  .tab-box > nav > button[selected] {
+      background-color: var(--background-color);
+      border-bottom: 1px solid var(--background-color);
+      cursor: default;
+  }
+  .tab-box > .tab-content {display: none;}
+  .tab-box > .tab-content[selected] {
+      display: block;
+      animation: fade 1s;
+      animation-delay: .0001s;
+      animation-fill-mode: both;
+  }
+  @keyframes fade {
+      0% {opacity: 0}
+      100% {opacity: 1}
+  }
+#+END_SRC
