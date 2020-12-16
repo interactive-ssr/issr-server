@@ -75,10 +75,10 @@ This example is just an unordered list of consecutive numbers. The "add" button 
              ,@(loop for n from 1 to x
                  collect <li>,(progn n)</li>)
            </ul>
-           <button onclick="rr(this)" name="x" value=(+ x 1)>
+           <button onclick="rr(this)" action="x" value=(+ x 1)>
              add
            </button>
-           <button onclick="rr(this)" name="x" value=(max 0 (- x 1))>
+           <button onclick="rr(this)" action="x" value=(max 0 (- x 1))>
              delete
            </button>
          </body>
