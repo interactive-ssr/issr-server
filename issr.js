@@ -28,7 +28,11 @@ function update (instructions) {
         case "mod": {
             let node = descendant(instruction[1]);
             for (let i = 2; i < instruction.length; ++i) {
-                node[instruction[i][0]] = instruction[i][1];
+                if (instruction[i][0].toString().startsWith("on")) {
+                    node[instruction[i][0]] = Function("event", instruction[i][1]);
+                } else {
+                    node[instruction[i][0]] = instruction[i][1];
+                }
                 if (instruction[i][0].indexOf("HTML") < 0) {
                     if ("" == instruction[i][1]) {
                         node.removeAttribute([instruction[i][0]]);
