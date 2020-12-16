@@ -37,14 +37,16 @@ Call Re-Render:
     I am add button
   </button>
 #+END_SRC
-Now your server should have a parameter who's name is ~action~ and who's value is "add". All other named elements on the page will be query-string parameters too. ~rr~ takes any number of arguments. The name attribute of any all the named arguments will be unique in the query string. For example the following is equivalent to the previous example (using [[https://json.org][JSON]]): 
+Now your server should have a parameter who's action is ~action~ and who's value is "add". All other named elements on the page will be query-string parameters too. ~rr~ takes any number of arguments. The name attribute of any all the named arguments will be unique in the query string. For example the following is equivalent to the previous example (using [[https://json.org][JSON]]): 
 #+BEGIN_SRC html
-  <button onclick="rr({name='action',value='add'})">
+  <button onclick="rr({action='action',value='add'})">
       I am add button
   </button>
 #+END_SRC
 ~rr~ can take any number of arguments like this to give you full control.
 It can also take no arguments, in which case it makes no effort to ensure uniqueness.
+
+The difference between attribute ~name~ and attribute ~action~ is that ~action~ will only be included in the query string if is an argument to ~rr~. Named elements will appear regardless.
 
 * Radio Buttons
 #+BEGIN_SRC html
@@ -95,7 +97,7 @@ Clicking the picture will produce produce include ~smap=x,y~ in the query string
 Clicking the top left quadrant of the picture will include ~cmap=top-left~ in the query string. See [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/area][area-tag]] for more options to define differently shaped areas.
 
 * Reusable Components
-The trick to keeping state is to require reusable components to have the ~id~ attribute. This not only make it unique, but it gives us a string to use as a GET parameter or session variable. The Get parameter can remember any state required by the component. The reason this works is because it is not required for the web programmer to specify GET parameters. The person using a Component doesn't need to worry about the existence of this variable (only not to use it for something else).
+The trick to keeping state is to require reusable components to have the ~id~ attribute. This not only make it unique, but it gives us a string to use as a GET parameter or session variable. The GET parameter can remember any state required by the component. The reason this works is because it is not required for the web programmer to specify GET parameters. The person using a Component doesn't need to worry about the existence of this variable (only not to use it for something else).
 
 ** Tab Box
 [[https://github.com/interactive-ssr/client/blob/master/tab-box.png]]
