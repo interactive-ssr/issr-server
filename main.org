@@ -14,7 +14,7 @@ Summary for the web developer:
 * Concept and Basic Examples
 Without ISSR, you would only generate the HTML for the initial page and have a mix of Javascript DOM manipulation and [[https://www.w3schools.com/xml/ajax_intro.asp][AJAX]] to update the page thereafter. With ISSR, you generate your HTML based on a set of parameters ([[https://en.wikipedia.org/wiki/Query_string][query string]]) and the HTML will be generated to be what the page should look like. This has the added benefit of making any state of the web page be accessible by a custom [[https://en.wikipedia.org/wiki/URL][URL]], just the way it is supposed to be. 
 
-The query string is generated the same way the [[https://www.w3schools.com/tags/tag_form.asp][form tag]] would do it. It takes all elements that have a ~name~ attribute and puts their ~name~ and ~value~ attributes in an string like so: ~name1=value1&name2=value2&name3=value3~. The exception is when the action that submits the form (attribute ~[type="submit"]~ ) has a name. The ISSR equivalent is calling ~rr(this)~. In both cases the name of the current tag (or object) will unique in the query string.
+The query string is generated the same way the [[https://www.w3schools.com/tags/tag_form.asp][form tag]] would do it. It takes all elements that have a ~name~ attribute and puts their ~name~ and ~value~ attributes in an string like so: ~name1=value1&name2=value2&name3=value3~. The exception is when the action that submits the form (attribute ~[type="submit"]~) has a name. The ISSR equivalent is calling ~rr(this)~. In both cases the name of the current tag (or object) will unique in the query string. Another slight difference from traditional forms is that in ISSR, you should use the ~action~ attribute for actions instead of name; this ensures that they are not sent unless the action is actually taken.
 
 ** Example Query String Generation
 #+BEGIN_SRC html
@@ -28,8 +28,8 @@ The query string is generated the same way the [[https://www.w3schools.com/tags/
   <!-- With ISSR -->
   <input name="name1" value="value1" />
   <input name="name2" value="value2" />
-  <button onclick="rr(this)" name="action" value="delete">delete</button>
-  <button onclick="rr(this)" name="action" value="add">add</button>
+  <button onclick="rr(this)" action="action" value="delete">delete</button>
+  <button onclick="rr(this)" action="action" value="add">add</button>
 #+END_SRC
 For both examples, pressing delete will generate the query string: ~name1=value1&name2=value2&action=delete~ and pressing add will generate the query string: ~name1=value1&name2=value2&action=add~.
 
@@ -62,7 +62,7 @@ Same functionality as the previous example, but using [[https://github.com/inter
     ,@(loop for n from 1 to x 
         collect <li>,(progn n)</li>)
   </ul>
-  <button onclick="rr(this)" name="x" value=(+ x 1)>add</button>
+  <button onclick="rr(this)" action="x" value=(+ x 1)>add</button>
 #+END_SRC
 ~rr()~ is the function to theoretically Re-Render the page. I say theoretically because only the parts of the page that have changed will be actually be re-rendered.
 
@@ -74,7 +74,7 @@ ISSR is versatile in that it can be applied to different programming languages a
       <li><?= $n ?></li> <!-- <?= ?> is to run PHP code and dump the value into HTML -->
     <?php } ?>
   </ul>
-  <button onclick="rr(this)" name="x" value="<?= $x + 1 ?>">add</button>
+  <button onclick="rr(this)" action="x" value="<?= $x + 1 ?>">add</button>
 #+END_SRC
 Both of these examples are not only shorter but cleaner than the mutative Javascript version. There are less variable mutations, no function name or global variable to keep track of, and there is no DOM manipulation or client-side scripting of any kind. And of course, none of them will refresh the page.
 * Architecture

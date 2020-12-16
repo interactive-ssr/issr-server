@@ -23,7 +23,7 @@ Set up the connection to the server:
     <head>
       ...
       <script src="/issr.js"></script>
-      <script noupdate="true">
+      <script noupdate="t">
         setup(«id», «port»)
       </script>
       ...
@@ -33,7 +33,7 @@ Where ~«id»~ and is the unique id provided by the server for the current HTTP 
 ** 4 Re-Render
 Call Re-Render:
 #+BEGIN_SRC html
-  <button onclick="rr(this)" name="action" value="add">
+  <button action="action" value="add" onclick="rr(this)">
     I am add button
   </button>
 #+END_SRC
@@ -48,18 +48,22 @@ It can also take no arguments, in which case it makes no effort to ensure unique
 
 * Radio Buttons
 #+BEGIN_SRC html
-  <input type="radio" name="direction" value="north" selected="true"/><label for="north">North</label><br />
-  <input type="radio" name="direction" value="east" /><label for="east">East</label><br />
-  <input type="radio" name="direction" value="south" /><label for="south">South</label><br />
-  <input type="radio" name="direction" value="west" /><label for="west">West</label><br />
-  <button name="action" value="submit">Submit</button>
+    <input type="radio" name="direction" value="north" selected="true"/><label for="north">North</label><br />
+    <input type="radio" name="direction" value="east" /><label for="east">East</label><br />
+    <input type="radio" name="direction" value="south" /><label for="south">South</label><br />
+    <input type="radio" name="direction" value="west" /><label for="west">West</label><br />
+    <button action="action" value="submit" onclick="rr(this)">
+      Submit
+    </button>
 #+END_SRC
 Pressing the submit button will produce a query string like so: ~action=submit&direction=north~. If no radio button is selected, the name for the radio button will not appear in the query string at all.
 
 * File Upload
 #+BEGIN_SRC html
-  <input type="file" name="file" />
-  <button name="action" value="upload">Upload</button>
+    <input type="file" name="file" />
+    <button action="action" value="upload" onclick="rr(this)">
+      Upload
+    </button>
 #+END_SRC
 File upload doesn't actually use a query string. The server side module will determine what it looks like on the server.
 
@@ -67,7 +71,7 @@ File upload doesn't actually use a query string. The server side module will det
 
 ** Server Maps
 #+BEGIN_SRC html
-  <a onclick="rr({name:'smap',value:event.offsetX+','+event.offsetY})">
+  <a onclick="rr({action:'smap',value:event.offsetX+','+event.offsetY})">
     <img src="picture.png" ismap />
   </a>
 #+END_SRC
@@ -78,13 +82,13 @@ Clicking the picture will produce produce include ~smap=x,y~ in the query string
   <img src="picture.png" usemap="#cmap"
        width="200" height="200"/>
   <map name="cmap">
-    <area onclick="rr({name:'cmap',value:'top-left'})"
+    <area onclick="rr({action:'cmap',value:'top-left'})"
           shape="rect" coords="0,0,100,100">
-    <area onclick="rr({name:'cmap',value:'top-right'})"
+    <area onclick="rr({action:'cmap',value:'top-right'})"
           shape="rect" coords="100,0,200,100">
-    <area onclick="rr({name:'cmap',value:'bottom-left'})"
+    <area onclick="rr({action:'cmap',value:'bottom-left'})"
           shape="rect" coords="0,100,100,200">
-    <area onclick="rr({name:'cmap',value:'bottom-right'})"
+    <area onclick="rr({action:'cmap',value:'bottom-right'})"
           shape="rect" coords="100,100,200,200">
   </map>
 #+END_SRC

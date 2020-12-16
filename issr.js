@@ -135,7 +135,8 @@ async function rr (...objs) {
                 }
             }
             return false;
-        };
+        },
+        actions = document.querySelectorAll("[action]");
     for (let element of elements) {
         let name = element.name || element.getAttribute("name");
         if (element.disabled || taken(name)) {
@@ -153,10 +154,19 @@ async function rr (...objs) {
             data[name] = [data[name], value];
         }
     }
+    for (let element of actions) {
+        let name = element.action || element.getAttribute("action");
+        if (!data[name]) {
+            data[name] = "";
+        }
+    }
+
     // generate params based on new and previous data
     let changed = keepchanged(previousdata, data);
     for (let obj of objs) {     // always ensure the data of objs gets sent
-        let name = (obj.name) || obj.getAttribute("name");
+        let name = obj.getAttribute("action") ||
+            (obj.name) ||
+            obj.getAttribute("name");
         changed[name] = data[name] = await getvalue(obj);
     }
     let params = jsonfiles(changed)?
