@@ -21,6 +21,7 @@ function descendant (indexes) {
  * - ["cookie", cookies...]: set cookies
  * - ["session", [key, value]...]: set session variables
  * - ["redirect", target]: redirect to target
+ * - ["error", message]: display server error to console.error
  */
 function update (instructions) {
     for (let instruction of instructions) {
@@ -61,6 +62,9 @@ function update (instructions) {
             break;}
         case "redirect": {
             document.location = instruction[1];
+            break;}
+        case "error": {
+            console.error(instruction[1]);
             break;}
         }
     }
