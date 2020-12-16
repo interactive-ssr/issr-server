@@ -169,18 +169,21 @@ INDEX: (aref (children parent) INDEX) to get current node."
                                                (list "outerHTML" (serialize new-node nil))))))))))
            ;; update attrs then descend into children
            (:else
-            (let ((new-attrs
-                    (and (element-p old-node)
-                         (element-p new-node)
-                         (remove-if #'null
-                                    (mapcar (lambda (key)
-                                              (let ((old-value (gethash key (attributes old-node) ""))
-                                                    (new-value (gethash key (attributes new-node) "")))
-                                                (when (string/= old-value new-value)
-                                                  (list key new-value))))
-                                            (union (hash-keys (attributes new-node))
-                                                   (hash-keys (attributes old-node))
-                                                   :test 'string=))))))
+            (let* ((update (when (element-p new-node)
+                             (gethash "update" (attributes new-node))))
+                   (new-attrs
+                    (when (and (element-p old-node)
+                               (element-p new-node))
+                      (remove-if #'null
+                                 (mapcar (lambda (key)
+                                           (let ((old-value (gethash key (attributes old-node) ""))
+                                                 (new-value (gethash key (attributes new-node) "")))
+                                             (when (or update
+                                                       (string/= old-value new-value))
+                                               (list key new-value))))
+                                         (union (hash-keys (attributes new-node))
+                                                (hash-keys (attributes old-node))
+                                                :test 'string=))))))
               (diff-dom old-dom new-dom 0 (cons index indexes)
                         (if new-attrs
                             (append instructions (list (append (list "mod") (list (reverse (cons index indexes))) new-attrs)))
