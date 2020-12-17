@@ -240,3 +240,49 @@ Lastly, add some CSS to hide the tab content that is not selected. Also lots of 
       100% {opacity: 1}
   }
 #+END_SRC
+
+* Input Control
+
+The way to do control what users can input into text boxes is to use the ~oninput~ event. The only issue with this is that if you are disabling some characters to be input, the final result will be the same as the original (empty) input. The solution is to use the ~update~ attribute which, if present, will force all attributes to be updated by the server.
+
+** Phone Number
+[[https://github.com/interactive-ssr/client/blob/master/phone-number.png]]
+
+We don't want the user to be able to enter anything but numbers, and we will put the hyphens in for them.
+
+#+BEGIN_SRC html
+  <input-phonenumber name="phone" value=phone />
+#+END_SRC
+
+First we will define a tag and create a local variable which is the user entered value with all the non-numbers removed and passed through our ~add-hyphens~ function.
+#+BEGIN_SRC lisp
+  (deftag input-phonenumber (&key name value)
+    (let ((filtered (add-hyphens
+                     (ppcre:regex-replace-all "[^0-9]" value ""))))
+#+END_SRC
+
+Next put the input tag with filtered value and the ~update~ if the value has changed. Just pass through the ~name~ attribute
+#+BEGIN_SRC html
+  <input name=name value=filtered
+         update=(string/= value filtered)
+         oninput="rr()" />))
+#+END_SRC
+
+Lastly we have to define our ~add-hyphens~ function. It also makes sure that the length is no longer than 12 (numbers plus hyphens).
+#+BEGIN_SRC lisp
+  (defun add-hyphens (number)
+    (let ((length (length number)))
+      (cond
+        ;; missing first hyphen
+        ((and (<= 4 length)
+              (char/= #\- (elt number 3)))
+         (add-hyphens (str:concat (subseq number 0 3) "-"
+                                  (subseq number 3))))
+        ;; missing second hyphen
+        ((and (<= 8 length)
+              (char/= #\- (elt number 7)))
+         (add-hyphens (str:concat (subseq number 0 7) "-"
+                                  (subseq number 7))))
+        (:else
+         (str:substring 0 12 number)))))
+#+END_SRC
