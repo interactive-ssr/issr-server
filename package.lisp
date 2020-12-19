@@ -1,6 +1,6 @@
 (defpackage hunchenissr
   (:use #:cl #:plump #:issr-core)
-  (:export :*clients*
+  (:export :clients
            :on-connect-hook
            :on-disconnect-hook
            :*ws-port*
