@@ -12,6 +12,7 @@
                #:plump
                #:clws
                #:str
-               #:hunchentoot)
+               #:hunchentoot
+               #:issr-core)
   :components ((:file "package")
                (:file "hunchenissr" :depends-on ("package"))))

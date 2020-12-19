@@ -1,5 +1,5 @@
 (defpackage hunchenissr
-  (:use #:cl #:plump)
+  (:use #:cl #:plump #:issr-core)
   (:export :*clients*
            :on-connect-hook
            :on-disconnect-hook
