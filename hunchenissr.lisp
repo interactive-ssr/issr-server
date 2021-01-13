@@ -19,7 +19,7 @@ Create any files necessary."
             (dolist (value value)
               (push (if (hash-table-p value)
                         (let ((path (hunchentoot::make-tmp-file-name))
-                              (byte-array (base64:base64-string-to-usb8-array
+                              (byte-array (cl-base64:base64-string-to-usb8-array
                                            (gethash "content" value))))
                           (ensure-directories-exist (directory-namestring path))
                           (when hunchentoot:*file-upload-hook*
@@ -93,15 +93,14 @@ Create any files necessary."
                       (append (diff-dom previous-page new-page)
                               instructions))
                 (setf (cadr (gethash *socket* clients)) new-page))))
-        (clws:write-to-client-text socket (jojo:to-json instructions))))))
+        (pws:send socket (jojo:to-json instructions))))))
 
-(defclass issr-resource (clws:ws-resource) ())
-(defmethod resource-client-connected ((resource issr-resource) socket) t)
-(defmethod clws:resource-client-disconnected ((resource issr-resource) socket)
+(defun ws-close (socket)
   (dolist (fun on-disconnect-hook)
     (funcall fun socket))
   (remhash socket clients))
-(defmethod clws:resource-received-text ((resource issr-resource) socket message)
+
+(defun ws-message (socket message)
   (cond
     ;; first connection
     ((str:starts-with-p "id:" message)
@@ -116,20 +115,18 @@ Create any files necessary."
                (funcall fun socket)))
            (progn
              (warn "Uhhhhm, id:~a doesn't exist.~%" id)
-             (clws:write-to-client-close socket :message (format nil "~a is not a valid id.~%" id))))))
+             (pws:send socket (format nil "~a is not a valid id.~%" id))))))
     ;; reconnecting
     ((str:starts-with-p "http:" message)
      (let* ((state (jojo:parse (subseq message 5) :as :hash-table))
             (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
             (request (make-instance
                       'hunchentoot:request
-                      :headers-in (list (cons :user-agent
-                                              (gethash :user-agent (clws:client-connection-headers socket))))
+                      :headers-in (pws:header socket)
                       :uri (gethash "uri" state)
                       :method :GET
                       :acceptor hunchentoot:*acceptor*
-                      :remote-addr (clws:client-host socket)
-                      :headers-in nil)))
+                      :remote-addr (cdr (assoc :host (pws:header socket))))))
        ;; set page
        (setf (gethash socket clients)
              (list request (clean (parse (gethash "page" state)))))
@@ -139,7 +136,7 @@ Create any files necessary."
                        (cons (hunchentoot:url-decode (first cookie))
                              (hunchentoot:url-decode (second cookie))))
                      (mapcar (lambda (cookie) (str:split "=" cookie))
-                             (str:split ";" (gethash :cookie (clws:client-connection-headers socket))))))
+                             (str:split ";" (cdr (assoc :cookie (pws:header socket)))))))
        ;; restore session
        (setf (slot-value request 'hunchentoot:session)
              (hunchentoot:session-verify request))
@@ -156,15 +153,16 @@ Create any files necessary."
          (funcall fun socket))))
     ;; giving parameters to update page
     ((and (gethash socket clients)
-              (or (str:starts-with-p "?" message)
-                  (str:starts-with-p "post:" message)))
-         (rr socket message))
+          (or (str:starts-with-p "?" message)
+              (str:starts-with-p "post:" message)))
+     (rr socket message))
     (:else
-     (clws:write-to-client-close socket :message (format nil "Wrong format.~%"))
+     (pws:send socket (format nil "Wrong format.~%"))
      (warn "Suspicious websoket connection from ~a.~%" socket))))
-(clws:register-global-resource
- "/" (make-instance 'issr-resource)
- #'clws:any-origin)
+
+(pws:define-resource "/"
+  :message #'ws-message
+  :close #'ws-close)
 
 (defvar *gc-leeway* 15
   "The number of seconds a websocket has to connect after being noticed before
@@ -176,10 +174,7 @@ being deleted.")
 (defparameter issr-gc "issr-gc"
   "The name of the garbage collection thread.")
 
-(defparameter issr-rc "issr-rc"
-  "The name of the resource listender thread.")
-
-(defmacro start (acceptor-or-servers &key ws-port)
+(defmacro start (acceptor &key ws-port)
   `(progn
      (when ,ws-port (setq *ws-port* ,ws-port))
      (unless *ws-port* (setq *ws-port* 4433))
@@ -193,31 +188,17 @@ being deleted.")
               (remhash client clients))))
         (sleep *gc-frequency*))
       :name issr-gc)
-     ;; resource listener
-     (bordeaux-threads:make-thread
-      (lambda () (clws:run-resource-listener
-             (clws:find-global-resource "/")))
-      :name issr-rc)
-     ,(let ((servers `(list (hunchentoot:start ,acceptor-or-servers)
-                            (bordeaux-threads:make-thread
-                             (lambda () (clws:run-server *ws-port*))
-                             :name "issr-ws-server"))))
-        (setq hunchentoot:*acceptor* (first servers))
-        ;; return and set the server
-        (if (symbolp acceptor-or-servers)
-            `(setf ,acceptor-or-servers ,servers)
-            servers))))
+     ;; start websocket server and http server
+     (list (hunchentoot:start ,acceptor)
+           (pws:server *ws-port* :multi-thread))))
 
 (defmacro stop (servers)
   `(progn
-     (bordeaux-threads:destroy-thread (second ,servers))
+     (when (bordeaux-threads:thread-alive-p (second ,servers))
+       (pws:server-close (second ,servers)))
      (setq hunchentoot:*acceptor* nil)
      ;; stop garbage collection
      (bt:destroy-thread (find issr-gc (bt:all-threads)
-                              :key #'bt:thread-name
-                              :test #'string=))
-     ;; stop resource listening
-     (bt:destroy-thread (find issr-rc (bt:all-threads)
                               :key #'bt:thread-name
                               :test #'string=))
      ;; return and set server
