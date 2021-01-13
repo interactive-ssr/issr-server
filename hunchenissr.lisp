@@ -43,6 +43,7 @@ Create any files necessary."
          (*first-time* nil)
          (info (gethash socket -clients-))
          (hunchentoot:*request* (car info))
+         (hunchentoot:*acceptor* (hunchentoot:request-acceptor hunchentoot:*request*))
          (hunchentoot:*session* (hunchentoot:session hunchentoot:*request*))
          (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
          (handler (hunchentoot:dispatch-easy-handlers hunchentoot:*request*))
