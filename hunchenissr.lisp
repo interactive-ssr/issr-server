@@ -6,7 +6,7 @@
             (page (block issr-redirect ,@body)))
        (unless *socket*
          (setf (gethash *id* clients)
-               (list hunchentoot:*request* (clean (parse page)))))
+               (list hunchentoot:*request* (clean (plump:parse page)))))
        page)))
 
 (defun handle-post-data (data)
@@ -88,7 +88,7 @@ Create any files necessary."
               ;; redirect or some other custom instruction
               (push new-page instructions)
               ;; dom instructions
-              (let ((new-page (clean (parse new-page))))
+              (let ((new-page (clean (plump:parse new-page))))
                 (setq instructions
                       (append (diff-dom previous-page new-page)
                               instructions))
@@ -129,7 +129,7 @@ Create any files necessary."
                       :remote-addr (cdr (assoc :host (pws:header socket))))))
        ;; set page
        (setf (gethash socket clients)
-             (list request (clean (parse (gethash "page" state)))))
+             (list request (clean (plump:parse (gethash "page" state)))))
        ;; set cookies
        (setf (slot-value request 'hunchentoot:cookies-in)
              (mapcar (lambda (cookie)
@@ -181,11 +181,11 @@ being deleted.")
      ;; garbage collection of unconnected websockets
      (bordeaux-threads:make-thread
       (lambda ()
-        (dolist (client (hash-keys clients))
+        (dolist (client (hash-keys -clients-))
           (when (numberp client)
             (sleep *gc-leeway*)
-            (when (gethash client clients)
-              (remhash client clients))))
+            (when (gethash client -clients-)
+              (remhash client -clients-))))
         (sleep *gc-frequency*))
       :name issr-gc)
      ;; start websocket server and http server
