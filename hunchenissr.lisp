@@ -5,7 +5,7 @@
      (let* ((*id* (generate-id))
             (page (block issr-redirect ,@body)))
        (unless *socket*
-         (setf (gethash *id* clients)
+         (setf (gethash *id* -clients-)
                (list hunchentoot:*request* (clean (plump:parse page)))))
        page)))
 
@@ -41,7 +41,7 @@ Create any files necessary."
   "Send a Re-Render to SOCKET with query string PARAMETERS."
   (let* ((*socket* socket)
          (*first-time* nil)
-         (info (gethash socket clients))
+         (info (gethash socket -clients-))
          (hunchentoot:*request* (car info))
          (hunchentoot:*session* (hunchentoot:session hunchentoot:*request*))
          (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
@@ -92,26 +92,26 @@ Create any files necessary."
                 (setq instructions
                       (append (diff-dom previous-page new-page)
                               instructions))
-                (setf (cadr (gethash *socket* clients)) new-page))))
+                (setf (cadr (gethash *socket* -clients-)) new-page))))
         (pws:send socket (jojo:to-json instructions))))))
 
 (defun ws-close (socket)
-  (dolist (fun on-disconnect-hook)
+  (dolist (fun -on-disconnect-hook-)
     (funcall fun socket))
-  (remhash socket clients))
+  (remhash socket -clients-))
 
 (defun ws-message (socket message)
   (cond
     ;; first connection
     ((str:starts-with-p "id:" message)
      (let* ((id (parse-integer (subseq message 3)))
-            (info (gethash id clients)))
+            (info (gethash id -clients-)))
        (if info
            (progn
-             (setf (gethash socket clients) info)
+             (setf (gethash socket -clients-) info)
              (format t "Connected to client with id:~a.~%" id)
-             (remhash id clients)
-             (dolist (fun on-connect-hook)
+             (remhash id -clients-)
+             (dolist (fun -on-connect-hook-)
                (funcall fun socket)))
            (progn
              (warn "Uhhhhm, id:~a doesn't exist.~%" id)
@@ -128,7 +128,7 @@ Create any files necessary."
                       :acceptor hunchentoot:*acceptor*
                       :remote-addr (cdr (assoc :host (pws:header socket))))))
        ;; set page
-       (setf (gethash socket clients)
+       (setf (gethash socket -clients-)
              (list request (clean (plump:parse (gethash "page" state)))))
        ;; set cookies
        (setf (slot-value request 'hunchentoot:cookies-in)
@@ -149,10 +149,10 @@ Create any files necessary."
        (setf (slot-value request 'hunchentoot:get-parameters)
              (append (slot-value request 'hunchentoot:get-parameters)
                      (handle-post-data (gethash "params" state))))
-       (dolist (fun on-connect-hook)
+       (dolist (fun -on-connect-hook-)
          (funcall fun socket))))
     ;; giving parameters to update page
-    ((and (gethash socket clients)
+    ((and (gethash socket -clients-)
           (or (str:starts-with-p "?" message)
               (str:starts-with-p "post:" message)))
      (rr socket message))
