@@ -4,8 +4,11 @@ That is [[https://edicl.github.io/hunchentoot/][HUNCHENtoot]] ISSR. Make sure to
 * Getting Started
 First clone the repository where quicklisp can find it. You should have [[https://www.quicklisp.org/beta/][quicklisp]] installed too:
 #+BEGIN_SRC sh
-$ cd ~/quicklisp/local-projects/
-$ git clone https://github.com/interactive-ssr/hunchenissr
+  $ cd ~/quicklisp/local-projects/
+  $ git clone https://github.com/interactive-ssr/hunchenissr
+  # download non quicklisp dependencies
+  $ git clone https://github.com/charje/portal
+  $ git clone https://github.com/interactive-ssr/issr-core
 #+END_SRC
 Then load hunchenissr via quicklisp. You may want to include some other web tools too. I suggest [[https://github.com/moderninterpreters/markup][markup]] for generating HTML.
 #+BEGIN_SRC lisp
