@@ -8,7 +8,7 @@ First clone the repository where quicklisp can find it. You should have [[https:
   $ git clone https://github.com/interactive-ssr/hunchenissr
   # download non quicklisp dependencies
   $ git clone https://github.com/charje/portal
-  $ git clone https://github.com/interactive-ssr/issr-core
+  $ git clone https://github.com/interactive-ssr/core
 #+END_SRC
 Then load hunchenissr via quicklisp. You may want to include some other web tools too. I suggest [[https://github.com/moderninterpreters/markup][markup]] for generating HTML.
 #+BEGIN_SRC lisp
