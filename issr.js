@@ -12,6 +12,21 @@ function descendant (indexes) {
 }
 
 /**
+ * attr
+ * Return the ATTRIBUTE member, attribute, or undefined of OBJ
+ */
+function attr (obj, attribute) {
+    if (obj) {
+        if (obj[attribute] || obj[attribute] == "") {
+            return obj[attribute];
+        } else if (obj.getAttribute) {
+            return obj.getAttribute(attribute);
+        }
+    }
+    return undefined
+}
+
+/**
  * update
  * Modify the dom to be up to date with the server.
  * INSTRUCTIONS: An array containing objects like such:
@@ -100,7 +115,7 @@ function setup (id, port, protocol) {
 }
 
 async function getvalue (obj) {
-    let value = obj.value || (obj.value == ""? "" : obj.getAttribute("value"));
+    let value = attr(obj, "value");
     if (obj.type === "radio" ||
         obj.type === "checkbox") {
         if (!obj.checked) {
@@ -121,7 +136,7 @@ async function getvalue (obj) {
             }
         }
     }
-    return value
+    return value;
 }
 
 let previousdata = {};
@@ -129,25 +144,17 @@ let previousdata = {};
  * rr - re-render
  * Generate the url parameter list and send it over the server throught the socket.
  * Any element that has a "name" attribute will be put in the parameter list.
- * OBJS (optional) (variadic): Make OBJ.name be the only one of its kind in the parameter list.
+ * OBJS (optional) (variadic): Make OBJ.action be the only one of its kind in the parameter list.
  *
- * Usually, you would want to call rr as rr() or rr(this) from something like onclick="rr(this)", but it can be called as rr({name:"custom-name",value:"custom-value"}...) for custom results.
+ * Usually, you would want to call rr as rr() or rr(this) from something like onclick="rr(this)", but it can be called as rr({action:"custom-name",value:"custom-value"}...) for custom results.
  */
 async function rr (...objs) {
     let elements = document.querySelectorAll("[name]"),
         data = {},
-        taken = function (name) {
-            for (let obj of objs) {
-                if (name === (obj.name || (obj.value == ""? "" : obj.getAttribute("name")))) {
-                    return true;
-                }
-            }
-            return false;
-        },
         actions = document.querySelectorAll("[action]");
     for (let element of elements) {
-        let name = element.name || element.getAttribute("name");
-        if (element.disabled || taken(name)) {
+        let name = attr(element, "name");
+        if (element.disable) {
             continue;
         }
         let value = await getvalue(element);
@@ -163,7 +170,7 @@ async function rr (...objs) {
         }
     }
     for (let element of actions) {
-        let name = element.action || element.getAttribute("action");
+        let name = attr(element, "action");
         if (!data[name]) {
             data[name] = "";
         }
@@ -172,9 +179,8 @@ async function rr (...objs) {
     // generate params based on new and previous data
     let changed = keepchanged(previousdata, data);
     for (let obj of objs) {     // always ensure the data of objs gets sent
-        let name = obj.getAttribute("action") ||
-            (obj.name) ||
-            obj.getAttribute("name");
+        let name = attr(obj, "action") ||
+            attr(obj, "name");
         changed[name] = data[name] = await getvalue(obj);
     }
     let params = jsonfiles(changed)?
