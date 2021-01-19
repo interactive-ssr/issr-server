@@ -119,4 +119,4 @@ To show errors in the JavaScript console.error on subsequent errors:
 * Issues
 If you find any bugs of have any issues (installing, using, questions) use the Github issue tracker.
 * Contact
-If you want to contact me about collaboration, licensing, implementing a new back-end, etc. You can use the email in hunchenissr.asd.
+If you want to contact me about collaboration, licensing, implementing a new back-end, etc. You can use the email in =hunchenissr.asd=.
