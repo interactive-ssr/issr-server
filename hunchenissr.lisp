@@ -1,5 +1,8 @@
 (in-package #:hunchenissr)
 
+(defvar *show-errors-to-client* nil
+  "When non-nil, errors after the initial connection can be seen in console.error.")
+
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
      (let* ((*id* (generate-id))
@@ -161,9 +164,17 @@ Create any files necessary."
      (pws:send socket (format nil "Wrong format.~%"))
      (warn "Suspicious websoket connection from ~a.~%" socket))))
 
+(defun ws-error (socket condition)
+  (when *show-errors-to-client*
+    (pws:send socket (jojo:to-json
+                  (list
+                   (list "error"
+                         (format nil "~a" condition)))))))
+
 (pws:define-resource "/"
   :message #'ws-message
-  :close #'ws-close)
+  :close #'ws-close
+  :error #'ws-error)
 
 (defvar *gc-leeway* 15
   "The number of seconds a websocket has to connect after being noticed before

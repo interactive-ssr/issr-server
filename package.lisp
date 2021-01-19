@@ -4,6 +4,7 @@
    -clients-
    -on-connect-hook-
    -on-disconnect-hook-
+   *show-errors-to-client*
    *ws-port*
    *socket*
    *first-time*

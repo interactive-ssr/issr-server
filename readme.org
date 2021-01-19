@@ -96,6 +96,26 @@ This example is just an unordered list of consecutive numbers. The "add" button 
        </html>))
 #+END_SRC
 
+* Error Handling
+Hunchenissr uses Hunchentoot and Portal for communications with the client.
+
+
+To enter the debugger for errors on the initial connection:
+#+BEGIN_SRC lisp
+  (setq hunchentoot:*catch-errors-p* nil)
+#+END_SRC
+To show errors to the client on the initial connection:
+#+BEGIN_SRC lisp
+  (hunchentoot:*show-lisp-errors-p* t)
+#+END_SRC
+To _*not*_ enter the debugger on subsequent errors:
+#+BEGIN_SRC lisp
+  (setq pws:*debug-on-error* nil)
+#+END_SRC
+To show errors in the JavaScript console.error on subsequent errors:
+#+BEGIN_SRC lisp
+  (setq hunchenissr:*show-errors-to-client* t)
+#+END_SRC
 * Issues
 If you find any bugs of have any issues (installing, using, questions) use the Github issue tracker.
 * Contact
