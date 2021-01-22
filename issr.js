@@ -10,6 +10,9 @@ function descendant (indexes) {
     }
     return node;
 }
+let socket,
+    wsurl,
+    previousdata = {};
 
 /**
  * attr
@@ -85,7 +88,6 @@ function update (instructions) {
     }
 }
 
-let socket, wsurl;
 /**
  * setup
  * Connect to the websocket on the server.
@@ -139,7 +141,6 @@ async function getvalue (obj) {
     return value;
 }
 
-let previousdata = {};
 /**
  * rr - re-render
  * Generate the url parameter list and send it over the server throught the socket.
