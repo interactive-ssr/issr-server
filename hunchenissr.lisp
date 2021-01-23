@@ -7,10 +7,12 @@
   `(hunchentoot:define-easy-handler ,description ,lambda-list
      (let* ((*id* (generate-id))
             (page (block issr-redirect ,@body)))
-       (unless *socket*
-         (setf (gethash *id* -clients-)
-               (list hunchentoot:*request* (clean (plump:parse page)))))
-       page)))
+       (if *first-time*
+           (let ((page-dom (ensure-ids (clean (plump:parse page)))))
+             (setf (gethash *id* -clients-)
+                   (list hunchentoot:*request* page-dom))
+             (plump:serialize page-dom nil))
+           page))))
 
 (defun handle-post-data (data)
   "Return a list of get/post parameters from json/hash-table DATA.
