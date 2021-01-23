@@ -216,14 +216,16 @@ File.prototype.toString = function () {
 }
 FileList.prototype.toString = function () {
     return Array.from(this, function (file) {
-        return file.toString();
+        return file? file.toString() : "";
     }).join(",");
 }
 function keepchanged (olddata, newdata) {
     let updated = {};
     for (let name of Object.keys(newdata)) {
         if (typeof olddata[name] === "undefined" ||
-            olddata[name].toString() !== newdata[name].toString()) {
+            (olddata[name]? olddata[name].toString() : "")
+            !==
+            (newdata[name]? newdata[name].toString() : "")) {
             updated[name] = newdata[name];
         }
     }
@@ -233,7 +235,7 @@ function keepchanged (olddata, newdata) {
 function jsonfiles (data) {
     let containsfiles = false;
     for (let key of Object.keys(data)) {
-        if (data[key].constructor === FileList) {
+        if (data[key]? data[key].constructor === FileList : null) {
             containsfiles = true;
             data[key] = Array.from(data[key], function (file) {
                 return {content: file.content,
@@ -248,9 +250,9 @@ function jsonfiles (data) {
 function querystring (data) {
     return Object.keys(data).map(function (name) {
         if (typeof data[name] === "object") {
-            return data[name].map(function (value) {
+            return (data[name]? data[name].map(function (value) {
                 return `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
-            }).join("&");
+            }) : []).join("&");
         } else {
             return `${encodeURIComponent(name)}=${encodeURIComponent(data[name])}`;
         }
