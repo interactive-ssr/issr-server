@@ -1,15 +1,3 @@
-/**
- * descendant
- * Return the node that is the indexed descendant of document.
- * INDEXES: a list of indexes.
- */
-function descendant (indexes) {
-    let node = document;
-    for (let i of indexes) {
-        node = node.childNodes[i];
-    }
-    return node;
-}
 let socket,
     wsurl,
     previousdata = {};
@@ -33,9 +21,9 @@ function attr (obj, attribute) {
  * update
  * Modify the dom to be up to date with the server.
  * INSTRUCTIONS: An array containing objects like such:
- * - ["mod", [indexes], [key, value]...]: modifiy attributes or properties
- * - ["delete", indexes...]: delete node
- * - ["insert", [indexes], text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
+ * - ["mod", id, [key, value]...]: modifiy attributes or properties
+ * - ["delete", id, child-index]: delete node (child-index is optional)
+ * - ["insert", id, text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
  * - ["cookie", cookies...]: set cookies
  * - ["session", [key, value]...]: set session variables
  * - ["redirect", target]: redirect to target
@@ -45,32 +33,42 @@ function update (instructions) {
     for (let instruction of instructions) {
         switch (instruction[0]) {
         case "mod": {
-            let node = descendant(instruction[1]);
-            for (let i = 2; i < instruction.length; ++i) {
-                if (instruction[i][0].toString().startsWith("on")) {
-                    node[instruction[i][0]] = Function("event", instruction[i][1]);
-                } else {
-                    node[instruction[i][0]] = instruction[i][1];
-                }
-                if (instruction[i][0].indexOf("HTML") < 0) {
-                    if ("" == instruction[i][1]) {
-                        node.removeAttribute([instruction[i][0]]);
+            let node = document.getElementById(instruction[1]);
+            if (node) {
+                for (let i = 2; i < instruction.length; ++i) {
+                    if (instruction[i][0].toString().startsWith("on")) {
+                        node[instruction[i][0]] = Function("event", instruction[i][1]);
                     } else {
-                        node.setAttribute([instruction[i][0]], instruction[i][1]);
+                        node[instruction[i][0]] = instruction[i][1];
+                    }
+                    if (instruction[i][0].indexOf("HTML") < 0) {
+                        if ("" == instruction[i][1]) {
+                            node.removeAttribute([instruction[i][0]]);
+                        } else {
+                            node.setAttribute([instruction[i][0]], instruction[i][1]);
+                        }
                     }
                 }
             }
             break;}
         case "delete": {
-            descendant(instruction.slice(1)).remove();
+            let node = document.getElementById(instruction[1]);
+            if (node && instruction[2]) {
+                node.childNodes[instruction[2]].remove();
+            } else if (node) {
+                node.remove();
+            }
             break;}
         case "insert": {
-            let node = instruction[2]?
-                document.createTextNode(instruction[4]):
-                document.createElement('nil');
-            descendant(instruction[1])[instruction[3]](node);
-            if (!instruction[2]) {
-                node.outerHTML = instruction[4];
+            let parent = document.getElementById(instruction[1]);
+            if (parent) {
+                let node = instruction[2]?
+                    document.createTextNode(instruction[4]):
+                    document.createElement('nil');
+                parent[instruction[3]](node);
+                if (!instruction[2]) {
+                    node.outerHTML = instruction[4];
+                }
             }
             break;}
         case "cookie": {
