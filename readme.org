@@ -2,15 +2,7 @@
 That is [[https://edicl.github.io/hunchentoot/][HUNCHENtoot]] ISSR. Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/main.org][main readme]] for the ISSR project and [[https://github.com/interactive-ssr/client/blob/master/getting-started.org][setup issr.js]]. ISSR allows you to make interactive web pages without writing client scripting; just include issr.js and generate some HTML in your server language (in the case of Hunchenissr: Common Lisp).
 
 * Getting Started
-First clone the repository where quicklisp can find it. You should have [[https://www.quicklisp.org/beta/][quicklisp]] installed too:
-#+BEGIN_SRC sh
-  $ cd ~/quicklisp/local-projects/
-  $ git clone https://github.com/interactive-ssr/hunchenissr
-  # download non quicklisp dependencies
-  $ git clone https://github.com/charje/portal
-  $ git clone https://github.com/interactive-ssr/core
-#+END_SRC
-Then load hunchenissr via quicklisp. You may want to include some other web tools too. I suggest [[https://github.com/moderninterpreters/markup][markup]] for generating HTML.
+Install with [[https://www.quicklisp.org/beta/][quicklisp]]. You may want to include some other web tools too. I suggest [[https://github.com/moderninterpreters/markup][markup]] for generating HTML.
 #+BEGIN_SRC lisp
 (ql:quickload '(hunchenissr markup))
 #+END_SRC
