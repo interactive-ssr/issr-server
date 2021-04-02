@@ -195,12 +195,13 @@ being deleted.")
      ;; garbage collection of unconnected websockets
      (bordeaux-threads:make-thread
       (lambda ()
-        (dolist (client (hash-keys -clients-))
-          (when (numberp client)
-            (sleep *gc-leeway*)
-            (when (gethash client -clients-)
-              (remhash client -clients-))))
-        (sleep *gc-frequency*))
+        (loop
+          (dolist (client (hash-keys -clients-))
+            (when (numberp client)
+              (sleep *gc-leeway*)
+              (when (gethash client -clients-)
+                (remhash client -clients-))))
+          (sleep *gc-frequency*)))
       :name issr-gc)
      ;; start websocket server and http server
      (list (hunchentoot:start ,acceptor)
@@ -212,9 +213,10 @@ being deleted.")
        (pws:server-close (second ,servers)))
      (setq hunchentoot:*acceptor* nil)
      ;; stop garbage collection
-     (bt:destroy-thread (find issr-gc (bt:all-threads)
-                              :key #'bt:thread-name
-                              :test #'string=))
+     (let ((gc (find issr-gc (bt:all-threads)
+                     :key #'bt:thread-name
+                     :test #'string=)))
+       (when gc (bt:destroy-thread gc)))
      ;; return and set server
      (setf ,servers (hunchentoot:stop (first ,servers)))))
 
