@@ -2,6 +2,10 @@ let socket,
     wsurl,
     previousdata = {};
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * attr
  * Return the ATTRIBUTE member, attribute, or undefined of OBJ
@@ -27,9 +31,10 @@ function attr (obj, attribute) {
  * - ["cookie", cookies...]: set cookies
  * - ["session", [key, value]...]: set session variables
  * - ["redirect", target]: redirect to target
+ * - ["reconnect"]: reset the websocket and send the previousdata.
  * - ["error", message]: display server error to console.error
  */
-function update (instructions) {
+async function update (instructions) {
     for (let instruction of instructions) {
         switch (instruction[0]) {
         case "mod": {
@@ -79,6 +84,17 @@ function update (instructions) {
         case "redirect": {
             document.location = instruction[1];
             break;}
+        case "reconnect": {
+            await reconnect();
+            let onopen = socket.onopen,
+                params = jsonfiles(previousdata)?
+                "post:" + JSON.stringify(previousdata):
+                "?" + querystring(previousdata);
+            socket.onopen = function (event) {
+                onopen();
+                socket.send(params);
+            };
+            break;}
         case "error": {
             console.error(instruction[1]);
             break;}
@@ -87,7 +103,7 @@ function update (instructions) {
 }
 
 /**
- * setup
+ * setup and connect
  * Connect to the websocket on the server.
  * ID: the unique server generated id for identifying with the websocket.
  * PORT (optional): The port to connect to. (443 or 80 by default based on PROTOCOL).
@@ -105,6 +121,11 @@ function setup (protocol, port) {
         port = (protocol == "ws"? 80 : 443);
     }
     wsurl = `${protocol}://${location.hostname}:${port}`;
+}
+
+// connect calls setup
+function connect (id, protocol, port) {
+    setup(port, protocol);
     socket = new WebSocket(wsurl);
     socket.onmessage = function (event) {
         update(JSON.parse(event.data));
@@ -186,28 +207,37 @@ async function rr (...objs) {
         "post:" + JSON.stringify(changed):
         "?" + querystring(changed);
     previousdata = data;
-    if (!socket) {
-        console.error("Socket is not set up yet; try calling setup before calling rr.");
-        return false;
-    } else if (socket.readyState > 1) {
-        socket = new WebSocket(wsurl);
-        socket.onmessage = function (event) {
-            update(JSON.parse(event.data));
-        };
-        jsonfiles(previousdata);
-        let loc = location.href.toString(), host = location.host,
-            state = {uri: loc.substring(loc.indexOf(host) + host.length, loc.indexOf("?")),
-                     page: "<!doctype html>" + document.documentElement.outerHTML,
-                     params: previousdata,
-                     query: loc.substring(loc.indexOf("?") + 1)};
+    if (!socket || socket.readyState != 1) {
+        await reconnect();
+        let onopen = socket.onopen;
         socket.onopen = function (event) {
-            socket.send("http:" + JSON.stringify(state));
+            onopen();
             socket.send(params);
         };
     } else {
         socket.send(params);
     }
     return true;
+}
+
+async function reconnect () {
+    socket = new WebSocket(wsurl);
+    let loc = location.href.toString(),
+        host = location.host,
+        args = loc.indexOf("?"),
+        state = {
+            uri: loc.substring(loc.indexOf(host) + host.length,
+                               (args > 0 ? args : loc.length)),
+            page: "<!doctype html>" + document.documentElement.outerHTML,
+            params: previousdata,
+            query: loc.substring(loc.indexOf("?") + 1)
+        };
+    socket.onopen = function (event) {
+        socket.send("http:" + JSON.stringify(state));
+    };
+    socket.onmessage = function (event) {
+        update(JSON.parse(event.data));
+    };
 }
 
 File.prototype.content = "";
@@ -242,6 +272,8 @@ function jsonfiles (data) {
                         name: file.name,
                         type: file.type}
             });
+        } else if (data[key] && data[key].name) {
+            containsfiles = true;
         }
     }
     return containsfiles;
