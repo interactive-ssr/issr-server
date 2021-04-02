@@ -24,11 +24,13 @@ Set up the connection to the server:
       ...
       <script src="/issr.js"></script>
       <script noupdate="t">
-        setup(«id», «port»)
+        connect(«id», «protocol», «port»)
       </script>
       ...
 #+END_SRC
-Where ~«id»~ and is the unique id provided by the server for the current HTTP connection and  ~«port»~ is the port your websocket server is listening on (also provided by the ISSR server module). The ~noupdate~ attribute makes sure that the id doesn't change and that ~setup~ isn't called more than once per page.
+Where ~«id»~ and is the unique id provided by the server for the current HTTP connection, ~«protocol»~ is either "ws" (for development) or "wss", and ~«port»~ is the port your websocket server is listening on (also provided by the ISSR server module). The ~noupdate~ attribute makes sure that the id doesn't change and that ~setup~ isn't called more than once per page.
+
+The ~connect~ function will automatically provide the client with a websocket connection. If you want to conserve RAM for pages with low interactivity, use ~setup~ instead and omit the ~«id»~ argument.
 
 ** 4 Re-Render
 Call Re-Render:
