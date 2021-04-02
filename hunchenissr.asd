@@ -6,7 +6,7 @@
   :description "Make Interactive-Server-Side-Rendered web pages with declaritive and recursive programming."
   :author "Charles Jackson <charles.b.jackson@protonmail.com>"
   :license "LLGPL"
-  :version "0"
+  :version "0.1"
   :serial t
   :depends-on (#:jonathan
                #:plump
