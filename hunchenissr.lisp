@@ -119,13 +119,12 @@ Create any files necessary."
              (remhash id -clients-)
              (dolist (fun -on-connect-hook-)
                (funcall fun socket)))
-           (progn
-             (warn "Uhhhhm, id:~a doesn't exist.~%" id)
-             (pws:send socket (format nil "~a is not a valid id.~%" id))))))
+           (pws:send socket (jojo:to-json (list (list "reconnect")))))))
     ;; reconnecting
     ((str:starts-with-p "http:" message)
-     (let* ((state (jojo:parse (subseq message 5) :as :hash-table))
+     (let* ((hunchentoot:*acceptor* (make-instance 'hunchentoot:acceptor))
             (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
+            (state (jojo:parse (subseq message 5) :as :hash-table))
             (request (make-instance
                       'hunchentoot:request
                       :headers-in (pws:header socket)
@@ -155,6 +154,7 @@ Create any files necessary."
        (setf (slot-value request 'hunchentoot:get-parameters)
              (append (slot-value request 'hunchentoot:get-parameters)
                      (handle-post-data (gethash "params" state))))
+       ;; run connect hook
        (dolist (fun -on-connect-hook-)
          (funcall fun socket))))
     ;; giving parameters to update page
@@ -163,8 +163,8 @@ Create any files necessary."
               (str:starts-with-p "post:" message)))
      (rr socket message))
     (:else
-     (pws:send socket (format nil "Wrong format.~%"))
-     (warn "Suspicious websoket connection from ~a.~%" socket))))
+     (pws:send socket (jojo:to-json (list (list "reconnect"))))
+     (pws:close socket))))
 
 (defun ws-error (socket condition)
   (when *show-errors-to-client*
