@@ -90,10 +90,10 @@ function update (instructions) {
  * setup
  * Connect to the websocket on the server.
  * ID: the unique server generated id for identifying with the websocket.
- * PORT (optional): The port to connect to. 443 (default).
+ * PORT (optional): The port to connect to. (443 or 80 by default based on PROTOCOL).
  * PROTOCOL (optional): Either "wss" or "ws" (default).
  */
-function setup (id, port, protocol) {
+function setup (protocol, port) {
     if (!window.WebSocket) {
         alert("Your browser doesn't support websockets. This website might not work properly.");
         return;
@@ -102,7 +102,7 @@ function setup (id, port, protocol) {
         protocol = "ws";
     }
     if (!port) {
-        port = 443;
+        port = (protocol == "ws"? 80 : 443);
     }
     wsurl = `${protocol}://${location.hostname}:${port}`;
     socket = new WebSocket(wsurl);
