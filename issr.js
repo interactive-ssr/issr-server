@@ -124,7 +124,7 @@ function setup (protocol, port) {
 
 // connect calls setup
 function connect (id, protocol, port) {
-    setup(port, protocol);
+    setup(protocol, port);
     socket = new WebSocket(wsurl);
     socket.onmessage = function (event) {
         update(JSON.parse(event.data));
