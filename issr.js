@@ -29,7 +29,6 @@ function attr (obj, attribute) {
  * - ["delete", id, child-index]: delete node (child-index is optional)
  * - ["insert", id, text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
  * - ["cookie", cookies...]: set cookies
- * - ["session", [key, value]...]: set session variables
  * - ["redirect", target]: redirect to target
  * - ["reconnect"]: reset the websocket and send the previousdata.
  * - ["error", message]: display server error to console.error
