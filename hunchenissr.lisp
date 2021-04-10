@@ -3,16 +3,21 @@
 (defvar *show-errors-to-client* nil
   "When non-nil, errors after the initial connection can be seen in console.error.")
 
+(defun treat-page (body)
+  (let ((page (gensym))
+        (page-dom (gensym)))
+    `(let* ((*id* (generate-id))
+            (,page (catch 'issr-redirect ,@body)))
+       (if *first-time*
+           (let ((,page-dom (ensure-ids (clean (plump:parse ,page)))))
+             (setf (gethash *id* -clients-)
+                   (list hunchentoot:*request* ,page-dom))
+             (plump:serialize ,page-dom nil))
+           ,page))))
+
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
-     (let* ((*id* (generate-id))
-            (page (block issr-redirect ,@body)))
-       (if *first-time*
-           (let ((page-dom (ensure-ids (clean (plump:parse page)))))
-             (setf (gethash *id* -clients-)
-                   (list hunchentoot:*request* page-dom))
-             (plump:serialize page-dom nil))
-           page))))
+     ,(treat-page body)))
 
 (defun handle-post-data (data)
   "Return a list of get/post parameters from json/hash-table DATA.
@@ -222,5 +227,5 @@ being deleted.")
 
 (defmacro redirect (target)
   `(if *socket*
-       (return-from issr-redirect (list "redirect" ,target))
+       (throw 'issr-redirect (list "redirect" ,target))
        (hunchentoot:redirect ,target)))
