@@ -56,7 +56,9 @@ Create any files necessary."
          (hunchentoot:*acceptor* (hunchentoot:request-acceptor hunchentoot:*request*))
          (hunchentoot:*session* (hunchentoot:session hunchentoot:*request*))
          (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
-         (handler (hunchentoot:dispatch-easy-handlers hunchentoot:*request*))
+         (handler (some (lambda (dis)
+                          (funcall dis hunchentoot:*request*))
+                        hunchentoot:*dispatch-table*))
          (previous-page (cadr info)))
     ;; update query string for request
     (let ((previous-params (copy-tree (hunchentoot:get-parameters*))))
