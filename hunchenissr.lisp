@@ -3,21 +3,52 @@
 (defvar *show-errors-to-client* nil
   "When non-nil, errors after the initial connection can be seen in console.error.")
 
-(defun treat-page (body)
+(defun treat-page (query-names body)
   (let ((page (gensym))
         (page-dom (gensym)))
-    `(let* ((*id* (generate-id))
-            (,page (catch 'issr-redirect ,@body)))
-       (if *first-time*
-           (let ((,page-dom (ensure-ids (clean (plump:parse ,page)))))
-             (setf (gethash *id* -clients-)
-                   (list hunchentoot:*request* ,page-dom))
-             (plump:serialize ,page-dom nil))
-           ,page))))
+    `(progn
+       (when (and (eq :post (hunchentoot:request-method*))
+                  (string= "application/json"
+                          (cdr (assoc :content-type
+                                      (hunchentoot:headers-in hunchentoot:*request*)))))
+         (setf (slot-value hunchentoot:*request* 'hunchentoot:get-parameters)
+               (handle-post-data (jojo:parse (hunchentoot:raw-post-data
+                                              :force-text t)
+                                             :as :hash-table)))
+         (setf (slot-value hunchentoot:*request* 'hunchentoot:post-parameters)
+               (slot-value hunchentoot:*request* 'hunchentoot:get-parameters))
+         (setf (slot-value hunchentoot:*request* 'hunchentoot::method)
+               :get))
+       (let* ((*id* (generate-id))
+              ,@(map 'list
+                    (lambda (query)
+                      (let ((query
+                              (if (stringp query)
+                                  (intern (string-upcase query))
+                                  query)))
+                        (list query `(or (hunchentoot:get-parameter
+                                          ,(string-downcase(string query)))
+                                         ,query))))
+                    query-names)
+              (,page (catch 'issr-redirect ,@body)))
+         (if *first-time*
+             (let ((,page-dom (ensure-ids (clean (plump:parse ,page)))))
+               (setf (gethash *id* -clients-)
+                     (list hunchentoot:*request* ,page-dom))
+               (plump:serialize ,page-dom nil))
+             ,page)))))
 
 (defmacro define-easy-handler (description lambda-list &body body)
   `(hunchentoot:define-easy-handler ,description ,lambda-list
-     ,(treat-page body)))
+     ;; when post json, parse using handle-post-data format
+     ,(treat-page
+       (map 'list
+            (lambda (var)
+              (if (consp var)
+                  (first var)
+                  var))
+            lambda-list)
+       body)))
 
 (defun handle-post-data (data)
   "Return a list of get/post parameters from json/hash-table DATA.
@@ -127,43 +158,6 @@ Create any files necessary."
              (dolist (fun -on-connect-hook-)
                (funcall fun socket)))
            (pws:send socket (jojo:to-json (list (list "reconnect")))))))
-    ;; reconnecting
-    ((str:starts-with-p "http:" message)
-     (let* ((hunchentoot:*acceptor* (make-instance 'hunchentoot:acceptor))
-            (hunchentoot:*reply* (make-instance 'hunchentoot:reply))
-            (state (jojo:parse (subseq message 5) :as :hash-table))
-            (request (make-instance
-                      'hunchentoot:request
-                      :headers-in (pws:header socket)
-                      :uri (gethash "uri" state)
-                      :method :GET
-                      :acceptor hunchentoot:*acceptor*
-                      :remote-addr (cdr (assoc :host (pws:header socket))))))
-       ;; set page
-       (setf (gethash socket -clients-)
-             (list request (clean (plump:parse (gethash "page" state)))))
-       ;; set cookies
-       (setf (slot-value request 'hunchentoot:cookies-in)
-             (mapcar (lambda (cookie)
-                       (cons (hunchentoot:url-decode (first cookie))
-                             (hunchentoot:url-decode (second cookie))))
-                     (mapcar (lambda (cookie) (str:split "=" cookie))
-                             (str:split ";" (cdr (assoc :cookie (pws:header socket)))))))
-       ;; restore session
-       (setf (slot-value request 'hunchentoot:session)
-             (hunchentoot:session-verify request))
-       ;; set parameters
-       ;; first set url parameters
-       (setf (slot-value request 'hunchentoot:query-string)
-             (gethash "query" state))
-       (hunchentoot:recompute-request-parameters :request request)
-       ;; set issr parameters
-       (setf (slot-value request 'hunchentoot:get-parameters)
-             (append (slot-value request 'hunchentoot:get-parameters)
-                     (handle-post-data (gethash "params" state))))
-       ;; run connect hook
-       (dolist (fun -on-connect-hook-)
-         (funcall fun socket))))
     ;; giving parameters to update page
     ((and (gethash socket -clients-)
           (or (str:starts-with-p "?" message)
