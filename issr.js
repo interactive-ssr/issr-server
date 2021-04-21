@@ -1,10 +1,6 @@
-let socket,
-    wsurl,
-    previousdata = {};
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+if (socket == undefined) var socket;
+if (wsurl == undefined) var wsurl;
+if (previousdata == undefined) var previousdata = {};
 
 /**
  * attr
@@ -33,7 +29,7 @@ function attr (obj, attribute) {
  * - ["reconnect"]: reset the websocket and send the previousdata.
  * - ["error", message]: display server error to console.error
  */
-async function update (instructions) {
+function update (instructions) {
     for (let instruction of instructions) {
         switch (instruction[0]) {
         case "mod": {
@@ -84,15 +80,7 @@ async function update (instructions) {
             document.location = instruction[1];
             break;}
         case "reconnect": {
-            await reconnect();
-            let onopen = socket.onopen,
-                params = jsonfiles(previousdata)?
-                "post:" + JSON.stringify(previousdata):
-                "?" + querystring(previousdata);
-            socket.onopen = function (event) {
-                onopen();
-                socket.send(params);
-            };
+            instruction[1]();
             break;}
         case "error": {
             console.error(instruction[1]);
@@ -102,29 +90,31 @@ async function update (instructions) {
 }
 
 /**
- * setup and connect
+ * connect
  * Connect to the websocket on the server.
  * ID: the unique server generated id for identifying with the websocket.
  * PORT (optional): The port to connect to. (443 or 80 by default based on PROTOCOL).
- * PROTOCOL (optional): Either "wss" or "ws" (default).
+ * PROTOCOL (optional): Either "wss" (default) or "ws".
  */
-function setup (protocol, port) {
+
+// connect calls setup
+function connect (id, protocol, port) {
     if (!window.WebSocket) {
         alert("Your browser doesn't support websockets. This website might not work properly.");
         return;
     }
     if (!protocol) {
-        protocol = "ws";
+        protocol = "wss";
     }
     if (!port) {
-        port = (protocol == "ws"? 80 : 443);
+        port = (protocol == "ws" ? 80 : 443);
     }
     wsurl = `${protocol}://${location.hostname}:${port}`;
-}
-
-// connect calls setup
-function connect (id, protocol, port) {
-    setup(protocol, port);
+    if (socket && socket.readyState == 1) {
+        socket.close();
+    } else {
+        socket = undefined;
+    }
     socket = new WebSocket(wsurl);
     socket.onmessage = function (event) {
         update(JSON.parse(event.data));
@@ -207,36 +197,29 @@ async function rr (...objs) {
         "?" + querystring(changed);
     previousdata = data;
     if (!socket || socket.readyState != 1) {
-        await reconnect();
-        let onopen = socket.onopen;
-        socket.onopen = function (event) {
-            onopen();
-            socket.send(params);
-        };
+        reconnect();
     } else {
         socket.send(params);
     }
     return true;
 }
 
-async function reconnect () {
-    socket = new WebSocket(wsurl);
-    let loc = location.href.toString(),
-        host = location.host,
-        args = loc.indexOf("?"),
-        state = {
-            uri: loc.substring(loc.indexOf(host) + host.length,
-                               (args > 0 ? args : loc.length)),
-            page: "<!doctype html>" + document.documentElement.outerHTML,
-            params: previousdata,
-            query: loc.substring(loc.indexOf("?") + 1)
-        };
-    socket.onopen = function (event) {
-        socket.send("http:" + JSON.stringify(state));
+function reconnect () {
+    let xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            let newhtml = document.open("text/html", "replace");
+            newhtml.write(this.responseText);
+            newhtml.close();
+            clean(document);
+            Array.from(document.getElementsByTagName("script"), function (scripttag) {
+                eval(scripttag.text);
+            });
+        }
     };
-    socket.onmessage = function (event) {
-        update(JSON.parse(event.data));
-    };
+    xhttp.open("POST", location.pathname, true);
+    xhttp.setRequestHeader("content-type", "application/json");
+    xhttp.send(JSON.stringify(previousdata));
 }
 
 File.prototype.content = "";

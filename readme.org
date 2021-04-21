@@ -1,6 +1,6 @@
 #+title: issr.js
 This is the readme for the client Javascript. Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/main.org][main readme]]
-for the ISSR project. issr.js doesn't work alone, it needs to be paired with a server side module such as [[https://github.com/interactive-ssr/hunchenissr][hunchenissr]].
+for the ISSR project. *issr.js doesn't work alone*; it needs to be paired with a server side module such as [[https://github.com/interactive-ssr/hunchenissr][hunchenissr]].
 
 * Getting Started
 
@@ -28,9 +28,7 @@ Set up the connection to the server:
       </script>
       ...
 #+END_SRC
-Where ~«id»~ and is the unique id provided by the server for the current HTTP connection, ~«protocol»~ is either "ws" (for development) or "wss", and ~«port»~ is the port your websocket server is listening on (also provided by the ISSR server module). The ~noupdate~ attribute makes sure that the id doesn't change and that ~setup~ isn't called more than once per page.
-
-The ~connect~ function will automatically provide the client with a websocket connection. If you want to conserve RAM for pages with low interactivity, use ~setup~ instead and omit the ~«id»~ argument.
+Where ~«id»~ and is the unique id provided by the server for the current HTTP connection, ~«protocol»~ is either "ws" (for development) or "wss", and ~«port»~ is the port your websocket server is listening on (also provided by the ISSR server module). The ~noupdate~ attribute makes sure that the id doesn't change and that ~connect~ isn't called more than once per page.
 
 ** 4 Re-Render
 Call Re-Render:
