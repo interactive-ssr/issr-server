@@ -56,7 +56,7 @@ function update (instructions) {
             break;}
         case "delete": {
             let node = document.getElementById(instruction[1]);
-            if (node && instruction[2]) {
+            if (node && instruction[2] != undefined) {
                 node.childNodes[instruction[2]].remove();
             } else if (node) {
                 node.remove();
