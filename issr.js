@@ -37,10 +37,13 @@ function update (instructions) {
             if (node) {
                 for (let i = 2; i < instruction.length; ++i) {
                     if (instruction[i][0].toString().startsWith("on")) {
+                        // set event value
                         node[instruction[i][0]] = Function("event", instruction[i][1]);
                     } else {
+                        // set value
                         node[instruction[i][0]] = instruction[i][1];
                     }
+                    // set attribute value
                     if (instruction[i][0].indexOf("HTML") < 0) {
                         if ("" == instruction[i][1]) {
                             node.removeAttribute([instruction[i][0]]);
