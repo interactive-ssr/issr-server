@@ -107,23 +107,15 @@ function update (instructions) {
  * connect
  * Connect to the websocket on the server.
  * ID: the unique server generated id for identifying with the websocket.
- * PORT (optional): The port to connect to. (443 or 80 by default based on PROTOCOL).
- * PROTOCOL (optional): Either "wss" (default) or "ws".
  */
-
-// connect calls setup
-function connect (id, protocol, port) {
+function connect (id) {
+    issrId = id;
     if (!window.WebSocket) {
         alert("Your browser doesn't support websockets. This website might not work properly.");
         return;
     }
-    if (!protocol) {
-        protocol = "wss";
-    }
-    if (!port) {
-        port = (protocol == "ws" ? 80 : 443);
-    }
-    wsurl = `${protocol}://${location.hostname}:${port}`;
+    secure = (location.protocol == "https:"? "s" : "");
+    wsurl = `ws${secure}://${location.hostname}:${location.port}/-issr`;
     if (socket && socket.readyState == 1) {
         socket.close();
     } else {
