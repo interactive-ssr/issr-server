@@ -183,6 +183,12 @@ async function rr (...objs) {
             // become array
             data[name] = [data[name], value];
         }
+        if (element.type === "radio"
+            && data[name].constructor === Array) {
+            data[name] = data[name]
+                .filter((value) => value)[0]
+                || "";
+        }
     }
     for (let element of actions) {
         let name = attr(element, "action");
