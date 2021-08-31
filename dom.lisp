@@ -37,6 +37,14 @@
 (defmethod node-attribute ((this node) attribute)
   (cdr (assoc attribute (node-attributes this))))
 
+(defmethod (setf node-attribute) (new-value (this node) attribute)
+  (let ((place (assoc attribute (node-attributes this))))
+    (if place
+      (setf (cdr place)
+            new-value)
+      (setf (slot-value this 'attributes)
+            (acons attribute new-value nil)))))
+
 (defmethod node-id ((this node))
   (node-attribute this :id))
 
