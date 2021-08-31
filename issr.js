@@ -200,9 +200,14 @@ async function rr (...objs) {
     // generate params based on new and previous data
     let changed = keepChanged(previousData, data);
     for (let obj of objs) {     // always ensure the data of objs gets sent
-        let name = attr(obj, "action") ||
-            attr(obj, "name");
-        changed[name] = data[name] = await getvalue(obj);
+        let action = attr(obj, "action"),
+            name = attr(obj, "name");
+        if (action) {
+            changed[action] = data[action] = await getvalue(obj) || "T";
+        }
+        if (name) {
+            changed[name] = data[name] = await getvalue(obj);
+        }
     }
     let params = jsonfiles(changed)?
         "post:" + JSON.stringify(changed):
