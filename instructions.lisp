@@ -1,8 +1,19 @@
 (in-package #:issr.instructions)
 
+(defmethod name ((this string))
+  this)
+
+(defmethod name ((this symbol))
+  (str:downcase (symbol-name this)))
+
 (defun mod (id key-values)
   (when key-values
-    (apply 'list "mod" id key-values)))
+    (apply 'list "mod" id
+           (map 'list
+                (lambda (pair)
+                  (-> pair first name
+                      (list (second pair))))
+                key-values))))
 
 (defun delete (ids)
   (when ids
@@ -21,11 +32,8 @@
            (type (or string node) html))
   (list "insert"
         id
-        (if (stringp html) 1 0)
         (str:downcase (symbol-name position))
-        (if (typep html 'node)
-            (princ-to-string (ensure-ids html))
-            html)))
+        (princ-to-string (ensure-ids html))))
 
 (defun cookie ()
   (list "cookie"))
