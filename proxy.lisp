@@ -35,5 +35,12 @@
                     ensure-ids))
             (id (random-alphanum)))
         (insert-js-call page id)
+        (setf (yxorp:header :method yxorp:*request-headers*)
+              "POST")
+        (setf (yxorp:header :content-type yxorp:*request-headers*)
+              "application/x-www-form-urlencoded")
+        (set-id-client id (make-request
+                           :headers yxorp:*request-headers*
+                           :previous-page page))
         (princ-to-string page))
       body))
