@@ -71,10 +71,10 @@
       (diff-siblings old-children new-children)
     (append
      instructions
-     (when to-remove
-       (list (i:delete (map 'list 'node-id to-remove))))
      (when to-add
-       (map 'list (curry 'i:insert parent-id :append) to-add)))))
+       (map 'list (curry 'i:insert parent-id :append) to-add))
+     (when to-remove
+       (list (i:delete (map 'list 'node-id to-remove)))))))
 
 (defun diff-strings (id old-text new-text)
   (unless (string= old-text new-text)
