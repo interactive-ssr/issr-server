@@ -12,9 +12,9 @@
                           (cdr attr2))))))
     (if (not (str:emptyp (node-attribute new :update)))
         (list (i:mod (node-id new)
-               (map 'list cons-list
-                    (remove :id (node-attributes new)
-                            :key 'car))))
+                     (map 'list cons-list
+                          (remove :id (node-attributes new)
+                                  :key 'car))))
         (let ((to-remove (set-difference
                           (node-attributes old)
                           (node-attributes new)
