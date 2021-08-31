@@ -5,26 +5,23 @@
 
 (defun make-ws-message (host port)
   (lambda (socket message)
-    (cond
-      ;; first connection
-      ((str:starts-with-p "id:" message)
-       (let* ((id (parse-integer (subseq message 3)))
-              (info (get-id-client id)))
-         (if info
-             (progn
-               (set-client-request-page socket info)
-               (set-id-client id socket)
-               (format t "Connected to client with id:~a.~%" id)
-               (run-application-hook id "disconnect" host port))
-             (pws:send socket (jojo:to-json (list (i:reconnect)))))))
-       ;; giving parameters to update page
-       ((and (get-client-request-page socket)
-             (or (str:starts-with-p "?" message)
-                 (str:starts-with-p "post:" message)))
-        (rr socket host port message))
-       (:else
-        (pws:send socket (jojo:to-json (list (i:reconnect))))
-        (pws:close socket)))))
+    (if (str:starts-with-p "id:" message)
+        ;; first connection
+        (let* ((id (subseq message 3))
+               (info (get-id-client id)))
+          (if (typep info 'request)
+              (progn
+                (set-client-request socket info)
+                (set-id-client id socket)
+                (format t "Connected to client with id:~a.~%" id))
+              ;; (run-application-hook id "disconnect" host port)
+              (pws:send socket (jojo:to-json (list (i:reconnect))))))
+        ;; giving parameters to update page
+        (handler-case (rr socket host port (jojo:parse message
+                                                       :as :alist))
+          (jojo:<jonathan-error> ()
+            (pws:send socket (jojo:to-json (list (i:reconnect))))
+            (pws:close socket))))))
 
 
 (defun make-ws-close (host port)
@@ -34,5 +31,11 @@
        client-request
        (yxorp:header :issr-id))
      "disconnect" host port)
-    (remove-client-request-page socket)))
-  
+    (remove-client-request socket)))
+
+(defun ws-error (socket condition)
+  (when *show-errors-to-client*
+    (pws:send
+     socket
+     (jojo:to-json
+      (list (i:error (format nil "~A" condition)))))))

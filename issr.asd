@@ -26,4 +26,5 @@
    (:file "core")
    (:file "config")
    (:file "proxy")
+   (:file "websocket")
    (:file "main")))
