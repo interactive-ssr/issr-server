@@ -42,7 +42,7 @@
       (list (list* (node :attributes (alist (:id . old-id)))
                    rest-old)
             (list* (node :attributes (alist (:id . new-id))) _))
-      (and (string/= old-id new-id) new-id
+      (and new-id (string/= old-id new-id)
            (find new-id rest-old
                  :key 'node-id
                  :test 'string=)))
