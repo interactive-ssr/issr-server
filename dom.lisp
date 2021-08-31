@@ -100,11 +100,13 @@
       (otherwise
        (let ((*in-pre* (or *in-pre* (eq "pre" (plump:tag-name node)))))
          (apply 'make-node
-              (plump:tag-name node)
-              (loop for key being the hash-keys of (plump:attributes node)
-                      using (hash-value value)
-                    collect (cons (make-keyword (str:upcase key)) value))
-              (domize-children (plump:children node))))))))
+                (plump:tag-name node)
+                (node-attrs node)
+                (if (member (plump:tag-name node)
+                            (list "title" "script" "style")
+                            :test 'string=)
+                    (list (apply 'str:concat (map 'list 'plump:text (plump:children node))))
+                    (domize-children (plump:children node)))))))))
 
 (defun add-id (attributes &optional id)
   (if (not (member :id attributes :key 'car))
@@ -112,35 +114,19 @@
       attributes))
 
 (defun ensure-ids (node)
-  (if (stringp node)
-      node
+  (prog1 node
+    (unless (stringp node)
       (case (node-name node)
-        ((or :!comment :!doctype) node)
-        (:tn (apply 'make-node
-                    (node-name node)
-                    (add-id (node-attributes node))
-                    (node-children node)))
-        (:!root (apply 'make-node
-                       :!root nil
-                       (map 'list 'ensure-ids (node-children node))))
-        (otherwise
-         (apply 'make-node
-                (node-name node)
-                (add-id (node-attributes node))
-                (map 'list 'ensure-ids (node-children node)))))))
-
-;; (defun ensure-ids (node)
-;;   (loop with stack = (list node)
-;;         for node = (pop stack)
-;;         while stack do
-;;           (when (typep node 'node)
-;;             (dolist (child (node-children node))
-;;               (push child stack))
-;;             (unless (member (node-name node)
-;;                             '(:!comment :!doctype :!root))
-;;               (setf (node-attributes node)
-;;                     (add-id (node-attributes node))))))
-;;   node)
+        ((or :!comment :!doctype) nil)
+        (:tn
+         (setf (node-attributes node)
+               (add-id (node-attributes node))))
+        (:!root
+         (map 'list 'ensure-ids (node-children node)))
+         (otherwise
+          (setf (node-attributes node)
+               (add-id (node-attributes node)))
+          (map 'list 'ensure-ids (node-children node)))))))
 
 (defun copy-id (old new)
   (setf (node-attributes new)
