@@ -249,25 +249,50 @@ function keepChanged (olddata, newdata) {
     return updated;
 }
 
+function elseTraverse (node, condition, action) {
+    for(let child of node.childNodes) {
+        if (condition(child)) {
+            action(child);
+        } else if (child.childNodes) {
+            elseTraverse(child, condition, action);
         }
     }
-}
-
 }
 
 /**
- * clean
- * Remove all pure whitespace text nodes.
+ * trackTextNodes
+ * Add text nodes to textNodes using the data in the parent TN tag.
  */
-function clean (node) {
-    for(let n = node.childNodes.length - 1; n >= 0; --n) {
-        let child = node.childNodes[n];
-        if (child.nodeType == 8 || (child.nodeType == 3 && !/\S/.test(child.nodeValue))) {
-            node.removeChild(child);
-        } else if (child.nodeType == 1 && child.tagName !== "PRE") {
-            clean(child);
-        }
-    }
+function trackTextNodes (node) {
+    elseTraverse(
+        node,
+        // if
+        child => child.nodeType == Node.ELEMENT_NODE
+            && child.tagName == "TN"
+            && child.id,
+        // then
+        child => {
+            let textNode = child.childNodes[0];
+            textNode.id = child.id;
+            textNodes[child.id] = textNode;
+            child.parentNode.replaceChild(textNode, child);
+        });
 }
-document.addEventListener("DOMContentLoaded", function () { clean(document); });
 
+/**
+ * freeTextNodes
+ * Garbage collect text nodes that are children of NODE removing them from
+ * textNodes.
+ */
+async function freeTextNodes (node) {
+    elseTraverse(
+        node,
+        // if
+        child => [Node.TEXT_NODE, Node.COMMENT_NODE]
+            .includes(child.nodeType)
+            && child.id,
+        // then
+        child => delete textNodes[child.id]
+    );
+}
+document.addEventListener("DOMContentLoaded", () => { trackTextNodes(document) });
