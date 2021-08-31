@@ -77,17 +77,18 @@
 
 (defun plump-dom-dom (node)
   (flet ((domize-children (children)
-           (remove
-            nil
-            (if (and (= 1 (length children))
-                     (plump:text-node-p (elt children 0)))
-                (list (plump:text (elt children 0)))
-                (map 'list 'plump-dom-dom children)))))
+           (->> children
+             (map 'list 'plump-dom-dom)
+             (remove nil)))
+         (node-attrs (node)
+           (loop for key being the hash-keys of (plump:attributes node)
+                   using (hash-value value)
+                 collect (cons (make-keyword (str:upcase key)) value))))
     (typecase node
       (plump:doctype
        (make-node :!doctype nil (plump:doctype node)))
       (plump:text-node
-       (when (or *in-pre* (not (str:blankp (plump:text node)))) 
+       (when (or *in-pre* (not (str:blankp (plump:text node))))
          (make-node :tn nil
                     (plump:text node))))
       (plump:comment
