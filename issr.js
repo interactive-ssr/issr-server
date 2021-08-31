@@ -1,6 +1,6 @@
 if (socket == undefined) var socket;
 if (wsurl == undefined) var wsurl;
-if (previousdata == undefined) var previousdata = {};
+if (previousData == undefined) var previousData = {};
 
 /**
  * attr
@@ -26,7 +26,7 @@ function attr (obj, attribute) {
  * - ["insert", id, text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
  * - ["cookie", cookies...]: set cookies
  * - ["redirect", target]: redirect to target
- * - ["reconnect"]: reset the websocket and send the previousdata.
+ * - ["reconnect"]: reset the websocket and send the previousData.
  * - ["error", message]: display server error to console.error
  */
 function update (instructions) {
@@ -189,7 +189,7 @@ async function rr (...objs) {
     }
 
     // generate params based on new and previous data
-    let changed = keepchanged(previousdata, data);
+    let changed = keepChanged(previousData, data);
     for (let obj of objs) {     // always ensure the data of objs gets sent
         let name = attr(obj, "action") ||
             attr(obj, "name");
@@ -198,7 +198,7 @@ async function rr (...objs) {
     let params = jsonfiles(changed)?
         "post:" + JSON.stringify(changed):
         "?" + querystring(changed);
-    previousdata = data;
+    previousData = data;
     if (!socket || socket.readyState != 1) {
         reconnect();
     } else {
@@ -234,7 +234,7 @@ FileList.prototype.toString = function () {
         return file? file.toString() : "";
     }).join(",");
 }
-function keepchanged (olddata, newdata) {
+function keepChanged (olddata, newdata) {
     let updated = {};
     for (let name of Object.keys(newdata)) {
         if (typeof olddata[name] === "undefined" ||
