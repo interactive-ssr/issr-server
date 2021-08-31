@@ -209,9 +209,7 @@ async function rr (...objs) {
             changed[name] = data[name] = await getvalue(obj);
         }
     }
-    let params = jsonfiles(changed)?
-        "post:" + JSON.stringify(changed):
-        "?" + querystring(changed);
+    let params = JSON.stringify(changed);
     previousData = data;
     if (!socket || socket.readyState != 1) {
         reconnect();
@@ -238,16 +236,6 @@ function reconnect () {
     xhttp.setRequestHeader("content-type", "application/json");
     xhttp.send(JSON.stringify(previousdata));
 }
-
-File.prototype.content = "";
-File.prototype.toString = function () {
-    return this.content;
-}
-FileList.prototype.toString = function () {
-    return Array.from(this, function (file) {
-        return file? file.toString() : "";
-    }).join(",");
-}
 function keepChanged (olddata, newdata) {
     let updated = {};
     for (let name of Object.keys(newdata)) {
@@ -261,33 +249,10 @@ function keepChanged (olddata, newdata) {
     return updated;
 }
 
-function jsonfiles (data) {
-    let containsfiles = false;
-    for (let key of Object.keys(data)) {
-        if (data[key]? data[key].constructor === FileList : null) {
-            containsfiles = true;
-            data[key] = Array.from(data[key], function (file) {
-                return {content: file.content,
-                        name: file.name,
-                        type: file.type}
-            });
-        } else if (data[key] && data[key].name) {
-            containsfiles = true;
         }
     }
-    return containsfiles;
 }
 
-function querystring (data) {
-    return Object.keys(data).map(function (name) {
-        if (typeof data[name] === "object") {
-            return (data[name]? data[name].map(function (value) {
-                return `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
-            }) : []).join("&");
-        } else {
-            return `${encodeURIComponent(name)}=${encodeURIComponent(data[name])}`;
-        }
-    }).join("&");
 }
 
 /**
