@@ -78,7 +78,7 @@
 
 (defun diff-strings (id old-text new-text)
   (unless (string= old-text new-text)
-    (list (i:mod id (list (list :text new-text))))))
+    (list (i:mod id (list (list "textContent" new-text))))))
 
 (defun diff (old new)
   (remove
