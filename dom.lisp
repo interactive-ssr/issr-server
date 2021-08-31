@@ -20,9 +20,10 @@
 
 (defclass node ()
   ((name :accessor node-name :initarg :name)
-   (change :accessor node-change)
-   (attributes :accessor node-attributes :initarg :attributes)
-   (children :accessor node-children :initarg :children)))
+   (attributes :accessor node-attributes :initarg :attributes
+               :initform nil)
+   (children :accessor node-children :initarg :children
+             :initform nil)))
 
 (defun make-node (name attributes &rest children)
   (make-instance
