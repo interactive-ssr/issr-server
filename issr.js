@@ -20,13 +20,21 @@ function attr (obj, attribute) {
 }
 
 /**
+ * elementById
+ * like document.getElementById, but also consults textNodes
+ */
+function elementById (id) {
+    return document.getElementById(id) || textNodes[id];
+}
+
+/**
  * update
  * Modify the dom to be up to date with the server.
  * INSTRUCTIONS: An array containing objects like such:
  * - ["mod", id, [key, value]...]: modifiy attributes or properties
- * - ["delete", id, child-index]: delete node (child-index is optional)
+ * - ["delete", ids...]: delete node (child-index is optional)
  * - ["insert", id, text, position, html-string]: insert html-string as a text or html node  either "before", "after", or "prepend" indexes.
- * - ["cookie", cookies...]: set cookies
+ * - ["cookie"]: fetch cookies
  * - ["redirect", target]: redirect to target
  * - ["reconnect"]: reset the websocket and send the previousData.
  * - ["error", message]: display server error to console.error
@@ -35,7 +43,7 @@ function update (instructions) {
     for (let instruction of instructions) {
         switch (instruction[0]) {
         case "mod": {
-            let node = document.getElementById(instruction[1]);
+            let node = elementById(instruction[1]);
             if (node) {
                 for (let i = 2; i < instruction.length; ++i) {
                     if (instruction[i][0].toString().startsWith("on")) {
@@ -46,40 +54,41 @@ function update (instructions) {
                         node[instruction[i][0]] = instruction[i][1];
                     }
                     // set attribute value
-                    if (instruction[i][0].indexOf("HTML") < 0) {
+                    if (!instruction[i][0].includes("textContent")
+                        && !instruction[i][0].includes("HTML")) {
                         if ("" == instruction[i][1]) {
                             node.removeAttribute([instruction[i][0]]);
                         } else {
-                            node.setAttribute([instruction[i][0]], instruction[i][1]);
+                            node.setAttribute(instruction[i][0], instruction[i][1]);
                         }
                     }
                 }
             }
             break;}
         case "delete": {
-            let node = document.getElementById(instruction[1]);
-            if (node && instruction[2] != undefined) {
-                node.childNodes[instruction[2]].remove();
-            } else if (node) {
+            for (let i = 1; i < instruction.length; ++i) {
+                let node = elementById(instruction[i]);
+                freeTextNodes(node);
                 node.remove();
             }
             break;}
         case "insert": {
-            let parent = document.getElementById(instruction[1]);
+            let parent = elementById(instruction[1]);
             if (parent) {
-                let node = instruction[2]?
-                    document.createTextNode(instruction[4]):
-                    document.createElement('nil');
-                parent[instruction[3]](node);
-                if (!instruction[2]) {
-                    node.outerHTML = instruction[4];
-                }
+                let node = document.createElement('nil');
+                parent[instruction[2]](node);
+                node.outerHTML = instruction[3];
+                trackTextNodes(parent);
             }
             break;}
         case "cookie": {
-            for (let i = 1; i < instruction.length; ++i) {
-                document.cookie = instruction[i];
-            }
+            fetch("-issr/cookie", {
+                method:"POST",
+                headers: {
+                    "content-type": "application/x-www-form-urlencoded"
+                },
+                body: "id=" + issrId
+            });
             break;}
         case "redirect": {
             document.location = instruction[1];
