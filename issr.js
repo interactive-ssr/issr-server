@@ -1,6 +1,8 @@
 if (socket == undefined) var socket;
 if (wsurl == undefined) var wsurl;
 if (previousData == undefined) var previousData = {};
+if (textNodes == undefined) var textNodes = {};
+if (issrId == undefined) var issrId;
 
 /**
  * attr
