@@ -92,7 +92,7 @@
                                  (lambda (value)
                                    (not (str:emptyp value)))))))
             new-node)
-      (set (node-attribute new-node :noupdate) "T")
+      (setf (node-attribute new-node :noupdate) "T")
       nil)
      ;; comment nodes
      ((list (node :name :tn :attributes (alist (:id . id))
