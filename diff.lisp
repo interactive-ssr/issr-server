@@ -104,13 +104,6 @@
       (copy-id old new)
       (diff-strings id old-text new-text))
      ;; text nodes
-     ((list (node :name :tn :attributes (alist (:id . id))
-                  :children (list old-text))
-            (node :name :tn
-                  :children (list new-text)))
-      (copy-id old new)
-      (diff-strings id old-text new-text))
-     ;; diff attributes and string body
      ((guard
        (list (node :name old-name :attributes (alist (:id . id))
                    :children (list old-text))
@@ -119,6 +112,13 @@
        (and (eq old-name new-name)
             (stringp old-text)
             (stringp new-text)))
+      (copy-id old new)
+      (diff-strings id old-text new-text))
+     ;; diff attributes and string body
+     ((list (node :name :tn :attributes (alist (:id . id))
+                   :children (list old-text))
+             (node :name :tn
+                   :children (list new-text)))
       (copy-id old new)
       (diff-strings id old-text new-text))
      ;; diff attributes then recur on children
