@@ -3,7 +3,7 @@
 (defclass request ()
   ((previous-page :accessor request-previous-page :initarg :previous-page)
    (headers :accessor request-headers :initarg :headers)
-   (query-arguments :accessor request-query-arguments)))
+   (query-arguments :reader request-query-arguments :initform nil)))
 
 (defun make-request (&key headers previous-page)
   (make-instance
@@ -13,11 +13,12 @@
 
 (defmethod initialize-instance :after ((this request) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
-  (let ((uri-parts
-          (->> this
-            request-headers
-            (yxorp:header :uri)
-            (str:split "?"))))
+  (let* ((str:*omit-nulls* t)
+         (uri-parts
+           (->> this
+             request-headers
+             (yxorp:header :uri)
+             (str:split "?"))))
     (setf (request-headers this)
           (copy-alist (request-headers this)))
     (setf (request-query-arguments this)
@@ -27,11 +28,10 @@
             (map 'list (curry 'str:split "="))
             (map 'list
                  (lambda (pair)
-                   (cons (urlencode:urldecode (first pair))
-                         (urlencode:urldecode (second pair)))))))
+                   (cons (urlencode:urldecode (or (first pair) ""))
+                         (urlencode:urldecode (or (second pair) "")))))))
     (setf (yxorp:header :uri (request-headers this))
-          (setf (yxorp:header :uri (request-headers this))
-                (first uri-parts)))))
+          (first uri-parts))))
 
 (defmethod request-uri ((this request))
   (->> this
@@ -45,9 +45,9 @@
      (yxorp:header :host))
    (request-uri this)))
 
-(defmethod (setf request-query-arguments) ((this request) new-query-arguments)
+(defmethod (setf request-query-arguments) (new-query-arguments (this request))
   (-<> new-query-arguments
-    (append (request-query-arguments this))
+    (append (request-query-arguments this) <>)
     (remove-duplicates :key 'first :test 'string=)
     (setf (slot-value this 'query-arguments) <>)))
 
