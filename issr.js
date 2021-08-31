@@ -239,7 +239,7 @@ function reconnect () {
 function keepChanged (olddata, newdata) {
     let updated = {};
     for (let name of Object.keys(newdata)) {
-        if (typeof olddata[name] === "undefined" ||
+        if (olddata[name] == undefined ||
             (olddata[name]? olddata[name].toString() : "")
             !==
             (newdata[name]? newdata[name].toString() : "")) {
