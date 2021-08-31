@@ -117,11 +117,61 @@
      (jojo:to-json (list hook id))
      :stream stream)))
 
-(defun rr (client host port message)
+(defun alist-query-string (alist)
+  (->> alist
+    (map 'list
+         (lambda (cons)
+           (if (listp (cdr cons))
+               (let ((key (urlencode (car cons))))
+                 (->> cons cdr
+                      (map 'list 'urlencode)
+                      (map 'list
+                           (curry 'format 'nil "~A=~A" key))
+                      (str:join "&")))
+               (format nil "~A=~A"
+                       (urlencode (car cons))
+                       (urlencode (cdr cons))))))
+    (str:join "&")))
+
+(defun rr (client host port params)
   (let ((request (get-client-request client)))
-    (if (str:starts-with-p "?" message)
-        (setf (request-query-arguments request)
-              (jojo:parse (subseq message 1)
-                          :as :alist)))
-    (with-open-stream (socket-stream (socket-connect host port))
-      )))
+    (setf (request-query-arguments request) params)
+    (with-open-stream
+        (server (socket-stream
+                 (socket-connect
+                  host port :element-type '(unsigned-byte 8))))
+      (let ((yxorp::*headers* (request-headers request)))
+        (-> request
+          request-query-arguments
+          alist-query-string
+          (flex:string-to-octets :external-format :utf8)
+          (yxorp::write-body-and-headers server)))
+      (let ((yxorp::*headers* (yxorp::parse-response-headers server)))
+        (when (<= 300 (yxorp:header :status) 399)
+          (pws:send
+           client
+           (-> :location
+             yxorp:header
+             i:redirect
+             list
+             (jojo:to-json :from :list)))
+          (return-from rr))
+        (let ((new-page
+                (-> server
+                  (yxorp::read-body (lambda (body) body))
+                  (flex:octets-to-string :external-format :utf8)
+                  plump:parse
+                  plump-dom-dom)))
+          (insert-js-call new-page "")
+          ;; this adds ids to new-page
+          (let ((instructions (diff (request-previous-page request)
+                                    new-page)))
+            (setf (request-previous-page request) new-page)
+            (let ((current-cookie (yxorp:header :cookie (request-headers request)))
+                  (new-cookie (yxorp:header :set-cookie yxorp::*headers*)))
+              (when (and new-cookie (string/= current-cookie new-cookie))
+                (push (i:cookie) instructions)
+                (setf (yxorp:header :cookie (request-headers request))
+                      new-cookie)))
+            (when instructions
+              (pws:send client (jojo:to-json instructions :from :list)))))))))
