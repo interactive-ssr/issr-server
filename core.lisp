@@ -178,20 +178,25 @@ Return 1: t if contained files, nil otherwise."
                         :from :alist))))))
        alist))
 
+(defun write-args (args server-stream)
+  (setf (yxorp:header :content-type) "application/x-www-form-urlencoded")
+  (-> args
+    flatten-args
+    alist-write-files
+    alist-query-string
+    (flex:string-to-octets :external-format :utf8)
+    (yxorp:write-body-and-headers server-stream)))
+
 (defun rr (client host port params)
   (let ((request (get-client-request client)))
     (setf (request-query-arguments request) params)
     (with-open-stream
         (server (socket-stream
-                 (socket-connect
-                  host port :element-type '(unsigned-byte 8))))
-      (let ((yxorp::*headers* (request-headers request)))
-        (-> request
-          request-query-arguments
-          alist-query-string
-          (flex:string-to-octets :external-format :utf8)
-          (yxorp::write-body-and-headers server)))
-      (let ((yxorp::*headers* (yxorp::parse-response-headers server)))
+                  (socket-connect
+                   host port :element-type '(unsigned-byte 8))))
+      (let ((yxorp:*headers* (request-headers request)))
+        (write-args (request-query-arguments request) server))
+      (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
         (when (<= 300 (yxorp:header :status) 399)
           (pws:send
            client
