@@ -130,7 +130,7 @@ function connect (id) {
     };
 }
 
-async function getvalue (obj) {
+async function getValue (obj) {
     let value = attr(obj, "value");
     if (obj.type === "radio" ||
         obj.type === "checkbox") {
@@ -172,7 +172,7 @@ async function rr (...objs) {
         if (element.disable) {
             continue;
         }
-        let value = await getvalue(element);
+        let value = await getValue(element);
         if (typeof data[name] === "undefined") {
             // set value
             data[name] = value;
@@ -203,10 +203,10 @@ async function rr (...objs) {
         let action = attr(obj, "action"),
             name = attr(obj, "name");
         if (action) {
-            changed[action] = data[action] = await getvalue(obj) || "T";
+            changed[action] = data[action] = await getValue(obj) || "T";
         }
         if (name) {
-            changed[name] = data[name] = await getvalue(obj);
+            changed[name] = data[name] = await getValue(obj);
         }
     }
     let params = JSON.stringify(changed);
