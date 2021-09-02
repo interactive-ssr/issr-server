@@ -117,20 +117,31 @@
      (jojo:to-json (list hook id))
      :stream stream)))
 
+(defun flatten-args (alist)
+  (apply 'concatenate 'list
+         (map 'list
+              (lambda (cons)
+                (let ((name (car cons))
+                      (value (cdr cons)))
+                  (if (and (listp value)
+                           (typep (first value)
+                                  '(or string list)))
+                      (map 'list
+                           (lambda (value)
+                             (cons name value))
+                           value)
+                      ;; if the first value is t, then it is a file
+                      (list cons))))
+              alist)))
+
 (defun alist-query-string (alist)
+  ;; must be flattened
   (->> alist
     (map 'list
          (lambda (cons)
-           (if (listp (cdr cons))
-               (let ((key (urlencode (car cons))))
-                 (->> cons cdr
-                      (map 'list 'urlencode)
-                      (map 'list
-                           (curry 'format 'nil "~A=~A" key))
-                      (str:join "&")))
-               (format nil "~A=~A"
-                       (urlencode (car cons))
-                       (urlencode (cdr cons))))))
+           (format nil "~A=~A"
+                   (urlencode (car cons))
+                   (urlencode (cdr cons)))))
     (str:join "&")))
 
 (defun rr (client host port params)
