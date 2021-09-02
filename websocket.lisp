@@ -17,8 +17,7 @@
               ;; (run-application-hook id "disconnect" host port)
               (pws:send socket (jojo:to-json (list (i:reconnect))))))
         ;; giving parameters to update page
-        (handler-case (rr socket host port (jojo:parse message
-                                                       :as :alist))
+        (handler-case (rr socket host port (jojo:parse message :as :alist))
           (jojo:<jonathan-error> ()
             (pws:send socket (jojo:to-json (list (i:reconnect))))
             (pws:close socket))))))
