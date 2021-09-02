@@ -42,5 +42,7 @@
         (set-id-client id (make-request
                            :headers yxorp:*request-headers*
                            :previous-page page))
+        (setf (yxorp:header :uri yxorp:*request-headers*)
+              (first (str:split "?" (yxorp:header :uri yxorp:*request-headers*))))
         (princ-to-string page))
       body))
