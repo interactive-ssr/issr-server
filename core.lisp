@@ -144,6 +144,40 @@
                    (urlencode (cdr cons)))))
     (str:join "&")))
 
+(defun alist-write-files (alist)
+  "Save file content in a /tmp file, and replace with path.
+Return 0: alist with file names instead of content.
+Return 1: t if contained files, nil otherwise."
+  ;; must be flattened
+  (map 'list
+       (lambda (cons)
+         (let ((name (car cons))
+               (value (cdr cons)))
+           (if (not (listp value))
+               cons
+               ;; first value is t if it is a file
+               (let ((content (second value))
+                     (tmp-file-name (make-pathname
+                                     :name (symbol-name (gensym "issr-"))
+                                     :directory "tmp")))
+                 (with-open-file
+                     (tmp-file tmp-file-name
+                               :direction :output
+                               :if-does-not-exist :create
+                               :if-exists :supersede
+                               :element-type '(unsigned-byte 8))
+                   (-> content
+                     base64:base64-string-to-usb8-array
+                     (write-sequence tmp-file)))
+                 (cons name
+                       (jojo:to-json
+                        (map 'list 'cons
+                             (list "file" "name" "content-type")
+                             (apply 'list (princ-to-string tmp-file-name)
+                                    (nthcdr 2 value)))
+                        :from :alist))))))
+       alist))
+
 (defun rr (client host port params)
   (let ((request (get-client-request client)))
     (setf (request-query-arguments request) params)
