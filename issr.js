@@ -4,6 +4,16 @@ if (previousData == undefined) var previousData = {};
 if (textNodes == undefined) var textNodes = {};
 if (issrId == undefined) var issrId;
 
+File.prototype.content = "";
+File.prototype.toString = function () {
+    return this.content;
+}
+FileList.prototype.toString = function () {
+    return Array.from(this, function (file) {
+        return file? file.toString() : "";
+    }).join(",");
+}
+
 /**
  * attr
  * Return the ATTRIBUTE member, attribute, or undefined of OBJ
@@ -198,6 +208,7 @@ async function rr (...objs) {
     }
 
     // generate params based on new and previous data
+    jsonFiles(data);
     let changed = keepChanged(previousData, data);
     for (let obj of objs) {     // always ensure the data of objs gets sent
         let action = attr(obj, "action"),
@@ -247,6 +258,16 @@ function keepChanged (olddata, newdata) {
         }
     }
     return updated;
+}
+
+function jsonFiles (data) {
+    for (let key of Object.keys(data)) {
+        if (data[key]? data[key].constructor === FileList : null) {
+            data[key] = Array.from(data[key], function (file) {
+                return [true, file.content, file.name, file.type];
+            });
+        }
+    }
 }
 
 function elseTraverse (node, condition, action) {
