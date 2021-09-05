@@ -16,7 +16,8 @@
         :param
         :source
         :track
-        :wbr))
+        :wbr
+        :path))
 
 (defclass node ()
   ((name :accessor node-name :initarg :name)
