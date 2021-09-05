@@ -111,7 +111,10 @@ function update (instructions) {
             instruction[0]();
             break;}
         case "error": {
-            console.error(instruction[1]);
+            let newhtml = open("about:blank")
+                .document.open("text/html","replace");
+            newhtml.write(instruction[1]);
+            newhtml.close()
             break;}
         }
     }
