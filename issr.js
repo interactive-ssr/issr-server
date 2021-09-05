@@ -237,17 +237,6 @@ async function rr (...objs) {
     return true;
 }
 
-function reconnect () {
-    let xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            let newhtml = document.open("text/html", "replace");
-            newhtml.write(this.responseText);
-            newhtml.close();
-            clean(document);
-            Array.from(document.getElementsByTagName("script"), function (scripttag) {
-                eval(scripttag.text);
-            });
 function drr (id, delay = this.delay) {
     let debounce = (func, delay) => {
         let timeout;
@@ -264,12 +253,31 @@ function drr (id, delay = this.delay) {
                 delete drrs[id];
             }, delay));
 }
+
+async function reconnect () {
+    let response = await fetch("/-issr/reconnect", {
+        method: "POST",
+        headers: {
+            "accept": "application/html",
+            "content-type": "application/json",
+            "issr-uri": location.pathname
+        },
+        body: JSON.stringify(previousData)
+    }), text = await response.text(),
+        newhtml = document.open("text/html", "replace");
+    if (300 <= response.status && response.status <= 399) {
+        location.href = response.headers.get("Location");
+    }
+    newhtml.write(text);
+    newhtml.close();
+    trackTextNodes(document);
+    Array.from(document.getElementsByTagName("script"), script => {
+        if (!script.type || script.type.includes("javascript")) {
+            eval(script.text);
         }
-    };
-    xhttp.open("POST", location.pathname, true);
-    xhttp.setRequestHeader("content-type", "application/json");
-    xhttp.send(JSON.stringify(previousdata));
+    });
 }
+
 function keepChanged (olddata, newdata) {
     let updated = {};
     for (let name of Object.keys(newdata)) {
