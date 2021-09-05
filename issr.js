@@ -139,10 +139,10 @@ function connect (id) {
         socket = undefined;
     }
     socket = new WebSocket(wsurl);
-    socket.onmessage = function (event) {
+    socket.onmessage = event => {
         update(JSON.parse(event.data));
     };
-    socket.onopen = function (event) {
+    socket.onopen = event => {
         socket.send(`id:${id}`);
     };
 }
