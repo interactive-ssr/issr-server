@@ -1,8 +1,12 @@
-if (socket == undefined) var socket;
-if (wsurl == undefined) var wsurl;
-if (previousData == undefined) var previousData = {};
-if (textNodes == undefined) var textNodes = {};
-if (issrId == undefined) var issrId;
+if (wsurl == undefined) {
+    var socket;
+    var wsurl;
+    var previousData = {};
+    var textNodes = {};
+    var issrId;
+    var drrs = {};
+    var delay = 800;
+}
 
 File.prototype.content = "";
 File.prototype.toString = function () {
