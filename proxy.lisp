@@ -27,22 +27,25 @@
   node)
 
 (defun add-ids-and-js-to-html (body)
-  (if (str:containsp "/html" (yxorp:header :content-type)
-                     :ignore-case t)
-      (let ((page (-> body
-                    plump:parse
-                    plump-dom-dom
-                    ensure-ids))
-            (id (random-alphanum)))
-        (insert-js-call page id)
-        (setf (yxorp:header :method yxorp:*request-headers*)
-              "POST")
-        (setf (yxorp:header :content-type yxorp:*request-headers*)
-              "application/x-www-form-urlencoded")
-        (set-id-client id (make-request
-                           :headers yxorp:*request-headers*
-                           :previous-page page))
-        (setf (yxorp:header :uri yxorp:*request-headers*)
-              (first (str:split "?" (yxorp:header :uri yxorp:*request-headers*))))
-        (princ-to-string page))
+  (let ((page (-> body
+                plump:parse
+                plump-dom-dom
+                ensure-ids))
+        (id (random-alphanum)))
+    (insert-js-call page id)
+    (setf (yxorp:header :method yxorp:*request-headers*)
+          "POST"
+          (yxorp:header :content-type yxorp:*request-headers*)
+          "application/x-www-form-urlencoded")
+    (set-id-client id (make-request
+                       :headers yxorp:*request-headers*
+                       :previous-page page))
+    (princ-to-string page)))
+
+(defun response-filter (body)
+  (if (and (str:containsp "/html" (yxorp:header :content-type)
+                          :ignore-case t)
+           (not (str:starts-with-p "/-issr/reconnect"
+                                   (yxorp:header :uri yxorp:*request-headers*))))
+      (add-ids-and-js-to-html body)
       body))
