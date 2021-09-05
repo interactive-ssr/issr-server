@@ -13,11 +13,12 @@
     :port (config-port config)
     :ssl (config-ssl config)
     :destinator (make-destinator config)
-    :response-filter #'add-ids-and-js-to-html))
+    :response-filter #'response-filter))
   (multiple-value-bind (host port)
       (destination-parts (config-application-destination config))
+    (make-/reconnect host port)
     (pws:define-resource "/-issr"
-      :message (make-ws-message host port)
+      :message (make-ws-message host port (config-show-errors-to-client config))
       :error #'ws-error))
   (setq *ws-server*
         (pws:server

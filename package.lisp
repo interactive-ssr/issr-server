@@ -47,6 +47,7 @@
                 #:compose
                 #:make-keyword)
   (:import-from #:binding-arrows
+                #:-<>>
                 #:some-<>
                 #:->>
                 #:some->
@@ -62,10 +63,14 @@
                 #:socket-stream
                 #:socket-connect)
   (:import-from #:hunchentoot
+                #:headers-in*
+                #:user-agent
+                #:host
+                #:raw-post-data
+                #:header-in*
                 #:header-out
                 #:easy-acceptor
-                #:define-easy-handler
-                )
+                #:define-easy-handler)
   (:import-from #:urlencode
                 #:urlencode))
 

@@ -1,9 +1,18 @@
 (in-package #:issr)
 
 (defclass request ()
-  ((previous-page :accessor request-previous-page :initarg :previous-page)
-   (headers :accessor request-headers :initarg :headers)
-   (query-arguments :reader request-query-arguments :initform nil)))
+  ((previous-page :reader request-previous-page
+                  :initarg :previous-page)
+   (headers :initarg :headers)
+   (cookies-in :reader request-cookies-in
+               :initarg :cookies-in
+               :initform nil)
+   (cookies-out :reader request-cookies-out
+                :initarg :cookies-out
+                :initform nil)
+   (query-arguments :reader request-query-arguments
+                    :initarg :query-arguments
+                    :initform nil)))
 
 (defun make-request (&key headers previous-page)
   (make-instance
@@ -11,17 +20,15 @@
    :previous-page previous-page
    :headers headers))
 
-(defmethod initialize-instance :after ((this request) &rest initargs &key &allow-other-keys)
+(defmethod initialize-instance :after ((request request) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
   (let* ((str:*omit-nulls* t)
          (uri-parts
-           (->> this
+           (->> request
              request-headers
              (yxorp:header :uri)
              (str:split "?"))))
-    (setf (request-headers this)
-          (copy-alist (request-headers this)))
-    (setf (request-query-arguments this)
+    (setf (slot-value request 'query-arguments)
           (->> uri-parts
             second
             (str:split "&")
@@ -29,27 +36,130 @@
             (map 'list
                  (lambda (pair)
                    (cons (urlencode:urldecode (or (first pair) ""))
-                         (urlencode:urldecode (or (second pair) "")))))))
-    (setf (yxorp:header :uri (request-headers this))
-          (first uri-parts))))
+                         (urlencode:urldecode (or (second pair) "")))))
+            (append (request-query-arguments request)))
+          (slot-value request 'cookies-in)
+          (->> request
+            request-headers
+            extract-request-cookies)
+          (slot-value request 'headers)
+          (-<>> request
+            request-headers
+            (remove :cookie <> :key 'car)
+            (remove :uri <> :key 'car)
+            (acons :uri (first uri-parts))))))
 
-(defmethod request-uri ((this request))
-  (->> this
+(defun stringify-cookies (cookies)
+  (->> cookies
+    (map 'list
+         (lambda (cookie)
+           (let ((name (car cookie))
+                 (value (cdr cookie)))
+           (str:concat name "=" value))))
+    (str:join "; ")))
+
+(defmethod request-new-page ((request request) new-page)
+  (with-slots (headers cookies-in cookies-out query-arguments)
+      request
+    (make-instance
+     'request
+     :previous-page new-page
+     :headers headers
+     :cookies-in cookies-in
+     :cookies-out cookies-out
+     :query-arguments query-arguments)))
+
+(defmethod request-headers ((request request))
+  (acons :cookie
+         (stringify-cookies (request-cookies-in request))
+         (slot-value request 'headers)))
+
+(defmethod request-uri ((request request))
+  (->> request
     request-headers
     (yxorp:header :uri)))
 
-(defmethod request-url ((this request))
+(defmethod request-url ((request request))
   (str:concat
-   (->> this
+   (->> request
      request-headers
      (yxorp:header :host))
-   (request-uri this)))
+   (request-uri request)))
 
-(defmethod (setf request-query-arguments) (new-query-arguments (this request))
-  (-<> new-query-arguments
-    (append (request-query-arguments this) <>)
-    (remove-duplicates :key 'first :test 'string=)
-    (setf (slot-value this 'query-arguments) <>)))
+(defmethod request-new-headers ((request request) new-headers)
+  (with-slots (previous-page cookies-in cookies-out query-arguments)
+      request
+    (make-instance
+     'request
+     :previous-page previous-page
+     :headers new-headers
+     :cookies-in cookies-in
+     :cookies-out cookies-out
+     :query-arguments query-arguments)))
+
+(defmethod request-new-query-arguments ((request request) new-query-arguments)
+  (with-slots (previous-page headers cookies-in cookies-out query-arguments)
+      request
+    (make-instance
+     'request
+     :previous-page previous-page
+     :headers headers
+     :cookies-in cookies-in
+     :cookies-out cookies-out
+     :query-arguments
+     (-> new-query-arguments
+       (append query-arguments)
+       (remove-duplicates :key 'car :test 'string= :from-end t)))))
+
+(defun extract-request-cookies (headers)
+  (-<>> headers
+    (remove :cookie <> :key 'car :test-not 'eq)
+    (map 'list 'cdr)
+    (map 'list (lambda (cookie)
+                 (str:split "; " cookie :limit 2)))
+    (reduce 'append)
+    (map 'list (curry 'str:split "="))
+    (map 'list (curry 'apply 'cons))))
+
+(defun extract-response-cookies (headers)
+  (-<>> headers
+    (remove :set-cookie <> :key 'car :test-not 'eq)
+    (map 'list 'cdr)))
+
+(defun response-cookies-request-cookies (cookies)
+  (->> cookies
+    (map 'list (lambda (cookie) (str:split "; " cookie :limit 2)))
+    (map 'list 'first)
+    (map 'list (curry 'str:split "="))
+    (map 'list (curry 'apply 'cons))))
+
+(defmethod request-new-cookies-in ((request request) new-cookies)
+  (with-slots (previous-page headers cookies-in cookies-out query-arguments)
+      request
+    (make-instance
+     'request
+     :previous-page previous-page
+     :headers headers
+     :cookies-in new-cookies
+     :cookies-out cookies-out
+     :query-arguments query-arguments)))
+
+(defmethod request-new-cookies-out ((request request) new-cookies)
+  (with-slots (previous-page headers cookies-in cookies-out query-arguments)
+      request
+    (make-instance
+     'request
+     :previous-page previous-page
+     :headers headers
+     :cookies-in
+     (-> new-cookies
+       response-cookies-request-cookies
+       (append cookies-in)
+       (remove-duplicates :key 'car :test 'string= :from-end t))
+     :cookies-out new-cookies
+     :query-arguments query-arguments)))
+
+(defmethod request-headers ((request request)))
 
 (defmacro define-map-accessors-with-lock (name map lock)
   `(progn
@@ -187,41 +297,60 @@ Return 1: t if contained files, nil otherwise."
     (flex:string-to-octets :external-format :utf8)
     (yxorp:write-body-and-headers server-stream)))
 
-(defun rr (client host port params)
-  (let ((request (get-client-request client)))
-    (setf (request-query-arguments request) params)
+(defun rr (client host port show-errors args)
+  (let ((request
+          (-> client
+            get-client-request
+            (request-new-query-arguments args))))
     (with-open-stream
         (server (socket-stream
-                  (socket-connect
-                   host port :element-type '(unsigned-byte 8))))
-      (let ((yxorp:*headers* (request-headers request)))
-        (write-args (request-query-arguments request) server))
-      (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
-        (when (<= 300 (yxorp:header :status) 399)
-          (pws:send
-           client
-           (-> :location
-             yxorp:header
-             i:redirect
-             list
-             (jojo:to-json :from :list)))
-          (return-from rr))
-        (let ((new-page
+                 (socket-connect
+                  host port :element-type '(unsigned-byte 8))))
+      (yxorp::with-socket-handler-case server
+        (let ((yxorp:*headers* (request-headers request)))
+          (write-args (request-query-arguments request) server))
+        (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
+          (cond
+            ((<= 300 (yxorp:header :status) 399)
+             (pws:send
+              client
+              (-> :location
+                yxorp:header
+                i:redirect
+                list
+                (jojo:to-json :from :list)))
+             (return-from rr))
+            ((<= 400 (yxorp:header :status) 599)
+             (when show-errors
+               (pws:send
+                client
                 (-> server
                   (yxorp::read-body (lambda (body) body))
                   (flex:octets-to-string :external-format :utf8)
-                  plump:parse
-                  plump-dom-dom)))
-          (insert-js-call new-page "")
-          ;; this adds ids to new-page
-          (let ((instructions (diff (request-previous-page request)
-                                    new-page)))
-            (setf (request-previous-page request) new-page)
-            (let ((current-cookie (yxorp:header :cookie (request-headers request)))
-                  (new-cookie (yxorp:header :set-cookie yxorp::*headers*)))
-              (when (and new-cookie (string/= current-cookie new-cookie))
-                (push (i:cookie) instructions)
-                (setf (yxorp:header :cookie (request-headers request))
-                      new-cookie)))
-            (when instructions
-              (pws:send client (jojo:to-json instructions :from :list)))))))))
+                  i:error list
+                  (jojo:to-json :from :list))))
+             (return-from rr)))
+          (let ((new-page
+                  (-> server
+                    (yxorp::read-body (lambda (body) body))
+                    (flex:octets-to-string :external-format :utf8)
+                    plump:parse
+                    plump-dom-dom)))
+            (insert-js-call new-page "")
+            ;; this adds ids to new-page
+            (let ((instructions (diff (request-previous-page request)
+                                      new-page))
+                  (new-cookies (extract-response-cookies yxorp:*headers*)))
+              (unless (= (length (request-cookies-out request))
+                         (length
+                          (-> new-cookies
+                            (append (request-cookies-out request))
+                            (remove-duplicates :test 'string=))))
+                (push (i:cookie) instructions))
+              (set-client-request
+               client
+               (-> request
+                 (request-new-page new-page)
+                 (request-new-cookies-out new-cookies)))
+              (when instructions
+                (pws:send client (jojo:to-json instructions :from :list))))))))))
