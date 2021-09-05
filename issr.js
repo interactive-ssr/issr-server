@@ -108,7 +108,7 @@ function update (instructions) {
             document.location = instruction[1];
             break;}
         case "reconnect": {
-            instruction[1]();
+            instruction[0]();
             break;}
         case "error": {
             console.error(instruction[1]);
