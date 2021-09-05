@@ -248,6 +248,22 @@ function reconnect () {
             Array.from(document.getElementsByTagName("script"), function (scripttag) {
                 eval(scripttag.text);
             });
+function drr (id, delay = this.delay) {
+    let debounce = (func, delay) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(args), delay);
+        };
+    }, debouncer = drrs[id];
+    // do not add newline after return
+    return (debouncer?
+            debouncer:
+            drrs[id] = debounce(objs => {
+                rr(...objs);
+                delete drrs[id];
+            }, delay));
+}
         }
     };
     xhttp.open("POST", location.pathname, true);
