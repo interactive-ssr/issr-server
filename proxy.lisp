@@ -1,5 +1,7 @@
 (in-package #:issr)
 
+(defvar *js-name* "issr.js")
+
 (defun make-destinator (config)
   (lambda ()
     (if (str:starts-with-p "/-issr" (yxorp:header :uri))
@@ -15,15 +17,16 @@
          (head (some-<> html
                  node-children
                  (find :head <> :key 'node-name)))
-         (js (make-node :script '((:noupdate . "T"))
-                        (format nil "connect(~S)" id))))
+         (js (list
+              (make-node :script `((:src . ,(str:concat "/-issr/" *js-name*))))
+              (make-node :script '((:noupdate . "T"))
+                              (format nil "connect(~S)" id)))))
     (if head
         (setf (node-children head)
-              (append (node-children head)
-                      (list js)))
+              (append (node-children head) js))
+        ;; else
         (setf (node-children node)
-              (append (node-children node)
-                      (list js)))))
+              (append (node-children node) js))))
   node)
 
 (defun add-ids-and-js-to-html (body)
