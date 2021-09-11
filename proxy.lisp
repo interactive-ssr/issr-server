@@ -29,7 +29,7 @@
               (append (node-children node) js))))
   node)
 
-(defun add-ids-and-js-to-html (body)
+(defun process-response (body)
   (let ((page (-> body
                 plump:parse
                 plump-dom-dom
@@ -46,9 +46,19 @@
     (princ-to-string page)))
 
 (defun response-filter (body)
-  (if (and (str:containsp "/html" (yxorp:header :content-type)
-                          :ignore-case t)
-           (not (str:starts-with-p "/-issr/reconnect"
-                                   (yxorp:header :uri yxorp:*request-headers*))))
-      (add-ids-and-js-to-html body)
-      body))
+  (cond
+    ;; add issr ids and js
+    ((and (str:containsp "html" (yxorp:header :content-type)
+                         :ignore-case t)
+          (not (str:starts-with-p "/-issr/reconnect"
+                                  (yxorp:header :uri yxorp:*request-headers*)))
+          (and (str:containsp "rr(" body :ignore-case nil)))
+     (process-response body))
+    ;; use issr favicon
+    ((and (string= "/favicon.ico" (yxorp:header :uri yxorp:*request-headers*))
+          (= 404 (yxorp:header :status)))
+     (prog1 ""
+       (setf (yxorp:header :status) 307
+             (yxorp:header :message) "Temporary Redirect"
+             (yxorp:header :location) "/-issr/favicon.ico")))
+    (:else body)))
