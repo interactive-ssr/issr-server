@@ -40,9 +40,11 @@
                          (urlencode:urldecode (or (second pair) "")))))
             (append (request-query-arguments request)))
           (slot-value request 'cookies-in)
-          (->> request
-            request-headers
-            extract-request-cookies)
+          (append (->> request request-headers
+                       extract-request-cookies)
+                  (->> request request-headers
+                       extract-response-cookies
+                       response-cookies-request-cookies))
           (slot-value request 'headers)
           (-<>> request
             request-headers

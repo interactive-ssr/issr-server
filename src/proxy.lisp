@@ -41,7 +41,8 @@
           (yxorp:header :content-type yxorp:*request-headers*)
           "application/x-www-form-urlencoded")
     (set-id-client id (make-request
-                       :headers yxorp:*request-headers*
+                       :headers (append yxorp:*request-headers*
+                                        yxorp:*headers*)
                        :previous-page page))
     (princ-to-string page)))
 
