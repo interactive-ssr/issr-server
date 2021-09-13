@@ -1,6 +1,6 @@
 (in-package #:issr)
 
-(defvar *js-name* "issr.js")
+(defvar *js-name* "issr.min.js")
 
 (defun make-destinator (config)
   (lambda ()
@@ -20,7 +20,7 @@
          (js (list
               (make-node :script `((:src . ,(str:concat "/-issr/" *js-name*))))
               (make-node :script '((:noupdate . "T"))
-                              (format nil "connect(~S)" id)))))
+                         (format nil "connect(~S)" id)))))
     (if head
         (setf (node-children head)
               (append (node-children head) js))
