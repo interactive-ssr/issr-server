@@ -58,8 +58,18 @@
                  (yxorp:*request-headers* yxorp:*headers*))
             (write-args args server)
             (let* ((yxorp:*headers* (yxorp::parse-response-headers server))
-                   (page
-                     (-> server
-                       (yxorp::read-body (lambda (body) body))
-                       (flex:octets-to-string :external-format :utf8))))
-              (add-ids-and-js-to-html page))))))))
+                   (encoding
+                     (or (some-<>> :content-type
+                           yxorp:header
+                           (str:split ";")
+                           (map 'list 'str:trim)
+                           (find "charset" <> :test 'str:starts-with-p)
+                           (str:split "=")
+                           second
+                           str:upcase
+                           make-keyword)
+                         (when (str:containsp "text" (yxorp:header :content-type))
+                           :iso-8859-1))))
+              (-> server
+                (yxorp::read-body 'process-response)
+                (flex:octets-to-string :external-format encoding)))))))))
