@@ -47,6 +47,7 @@
                 #:compose
                 #:make-keyword)
   (:import-from #:binding-arrows
+                #:some-<>>
                 #:-<>>
                 #:some-<>
                 #:->>
