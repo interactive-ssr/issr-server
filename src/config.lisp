@@ -31,7 +31,7 @@
   (port 3000
    :type port
    :read-only t)
-  (show-errors-to-client t
+  (show-errors-to-client nil
    :type boolean
    :read-only t)
   (api-port nil
