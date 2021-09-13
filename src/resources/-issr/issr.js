@@ -108,7 +108,7 @@ function update (instructions) {
             document.location = instruction[1];
             break;}
         case "reconnect": {
-            instruction[0]();
+            reconnect();
             break;}
         case "error": {
             let newhtml = open("about:blank")
@@ -133,18 +133,11 @@ function connect (id) {
     }
     secure = (location.protocol == "https:"? "s" : "");
     wsurl = `ws${secure}://${location.hostname}:${location.port}/-issr`;
-    if (socket && socket.readyState == 1) {
-        socket.close();
-    } else {
-        socket = undefined;
-    }
     socket = new WebSocket(wsurl);
-    socket.onmessage = event => {
-        update(JSON.parse(event.data));
-    };
-    socket.onopen = event => {
-        socket.send(`id:${id}`);
-    };
+    socket.onmessage =
+        event => update(JSON.parse(event.data));
+    socket.onopen =
+        event => socket.send("id:" + id);
 }
 
 async function getValue (obj) {
@@ -271,11 +264,11 @@ async function reconnect () {
     newhtml.write(text);
     newhtml.close();
     trackTextNodes(document);
-    Array.from(document.getElementsByTagName("script"), script => {
-        if (!script.type || script.type.includes("javascript")) {
-            eval(script.text);
-        }
-    });
+    // Array.from(document.getElementsByTagName("script"), script => {
+    //     if (!script.type || script.type.includes("javascript")) {
+    //         eval(script.text);
+    //     }
+    // });
 }
 
 function keepChanged (olddata, newdata) {
