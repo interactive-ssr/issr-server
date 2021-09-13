@@ -3,7 +3,8 @@
 (defclass request ()
   ((previous-page :reader request-previous-page
                   :initarg :previous-page)
-   (headers :initarg :headers)
+   (headers :initarg :headers
+            :reader request-headers)
    (cookies-in :reader request-cookies-in
                :initarg :cookies-in
                :initform nil)
