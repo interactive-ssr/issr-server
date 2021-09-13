@@ -12,8 +12,7 @@
           (if (typep info 'request)
               (progn
                 (set-client-request socket info)
-                (set-id-client id socket)
-                (format t "Connected to client with id:~a.~%" id))
+                (set-id-client id socket))
               ;; (run-application-hook id "disconnect" host port)
               (pws:send socket (jojo:to-json (list (i:reconnect))))))
         ;; giving parameters to update page
