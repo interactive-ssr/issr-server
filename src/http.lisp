@@ -26,16 +26,18 @@
       cookie
       (str:concat cookie "; Path=/")))
 
-(define-easy-handler (/cookie :uri "/-issr/cookie") (id)
-  (prog1 nil
-    (->> id
-      get-id-client
-      get-client-request
-      request-cookies-out
-      (map 'list 'add-cookie-path)
-      (map 'list 'set-hunchentoot-response-cookie))))
+(defun make-/cookie (redis-host redis-port redis-pass)
+  (define-easy-handler (/cookie :uri "/-issr/cookie") (id)
+    (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+      (prog1 nil
+        (->> id
+          get-id-client
+          get-client-request
+          cookies-out
+          (map 'list 'add-cookie-path)
+          (map 'list 'set-hunchentoot-response-cookie))))))
 
-(defun make-/reconnect (host port)
+(defun make-/reconnect (host port redis-host redis-port redis-pass)
   (define-easy-handler (/reconnect :uri "/-issr/reconnect") ()
     (with-open-stream
         (server (socket-stream
@@ -70,6 +72,7 @@
                            make-keyword)
                          (when (str:containsp "text" (yxorp:header :content-type))
                            :iso-8859-1))))
-              (-> server
+              (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+                (-> server
                 (yxorp::read-body 'process-response)
-                (flex:octets-to-string :external-format encoding)))))))))
+                (flex:octets-to-string :external-format encoding))))))))))

@@ -1,57 +1,125 @@
 (in-package #:issr.server)
 
+(defun issr-keys (main-key &rest keys)
+  (->> keys
+    (map 'list (compose 'str:downcase 'princ-to-string))
+    (cons (str:concat "issr-" (princ-to-string main-key)))
+    (str:join ":")))
 
 (defclass request ()
-  ((previous-page :reader request-previous-page
-                  :initarg :previous-page)
-   (headers :initarg :headers
-            :reader request-headers)
-   (cookies-in :reader request-cookies-in
-               :initarg :cookies-in
-               :initform nil)
-   (cookies-out :reader request-cookies-out
-                :initarg :cookies-out
-                :initform nil)
-   (query-arguments :reader request-query-arguments
-                    :initarg :query-arguments
-                    :initform nil)))
+  ((id :reader request-id
+       :type uuid
+       :initarg :id)
+   (previous-page :reader request-previous-page
+                  :type plump:root
+                  :initarg :previous-page
+                  :accessor request-previous-page)))
 
-(defun make-request (&key headers previous-page)
-  (make-instance
-   'request
-   :previous-page previous-page
-   :headers headers))
-
-(defmethod initialize-instance :after ((request request) &rest initargs &key &allow-other-keys)
-  (declare (ignore initargs))
+(defun make-request (&key id headers previous-page cookies-in cookies-out query-arguments)
   (let* ((str:*omit-nulls* t)
          (uri-parts
-           (->> request
-             request-headers
+           (some->> headers
              (yxorp:header :uri)
-             (str:split "?"))))
-    (setf (slot-value request 'query-arguments)
-          (->> uri-parts
-            second
-            (str:split "&")
-            (map 'list (curry 'str:split "="))
-            (map 'list
-                 (lambda (pair)
-                   (cons (urlencode:urldecode (or (first pair) ""))
-                         (urlencode:urldecode (or (second pair) "")))))
-            (append (request-query-arguments request)))
-          (slot-value request 'cookies-in)
-          (append (->> request request-headers
-                       extract-request-cookies)
-                  (->> request request-headers
-                       extract-response-cookies
-                       response-cookies-request-cookies))
-          (slot-value request 'headers)
-          (-<>> request
-            request-headers
-            (remove :cookie <> :key 'car)
-            (remove :uri <> :key 'car)
-            (acons :uri (first uri-parts))))))
+             (str:split "?")))
+         (request
+           (make-instance
+            'request
+            :id id
+            :previous-page previous-page)))
+    (prog1 request
+      (when (or uri-parts query-arguments)
+        (setf (query-arguments request)
+              (some->> uri-parts
+                second
+                (str:split "&")
+                (map 'list (curry 'str:split "="))
+                (map 'list
+                     (lambda (pair)
+                       (cons (urlencode:urldecode (or (first pair) ""))
+                             (urlencode:urldecode (or (second pair) "")))))
+                (append query-arguments))))
+      (when cookies-in
+        (setf (cookies-in request)
+              (append (extract-request-cookies headers)
+                      (some->> headers
+                        extract-response-cookies
+                        response-cookies-request-cookies)
+                      cookies-in)))
+      (when cookies-out
+        (setf (cookies-out request) cookies-out))
+      (when headers
+        (setf (headers request)
+              (some-<>> headers
+                (remove :cookie <> :key 'car)
+                (remove :uri <> :key 'car)
+                (acons :uri (first uri-parts))))))))
+
+(defun get-redis-hash (id key)
+  (let* ((hash (issr-keys id key))
+         (keys (red:hkeys hash)))
+    (loop for key in keys
+          collect (cons key
+                        (red:hget hash key)))))
+
+(defun get-redis-hash-keywords (id key)
+  (map 'list
+       (lambda (cons)
+         (cons (make-keyword (str:upcase (car cons)))
+               (cdr cons)))
+       (get-redis-hash id key)))
+
+(defun set-redis-hash (id key alist)
+  (let* ((hash (issr-keys id key)))
+    (loop for (key . value) in alist do
+      (red:hset hash key value))))
+
+(defun set-redis-hash-keywords (id key alist)
+  (set-redis-hash
+   id key
+   (map 'list
+        (lambda (cons)
+          (cons (str:downcase (symbol-name (car cons)))
+                (cdr cons)))
+        alist)))
+
+(defmethod headers ((request request))
+  (headers (request-id request)))
+
+(defmethod headers ((id uuid))
+  (get-redis-hash-keywords id :headers))
+
+(defmethod (setf headers) (alist (request request))
+  (setf (headers (request-id request))
+        alist))
+
+(defmethod (setf headers) (alist (id uuid))
+  (set-redis-hash-keywords id :headers alist))
+
+(defmethod cookies-in ((request request))
+  (cookies-in (request-id request)))
+
+(defmethod cookies-in ((id uuid))
+  (get-redis-hash-keywords id :cookies-in))
+
+(defmethod (setf cookies-in) (alist (request request))
+  (setf (cookies-in (request-id request))
+        alist))
+
+(defmethod (setf cookies-in) (alist (id uuid))
+  (set-redis-hash-keywords id :cookies-in alist))
+
+(defmethod cookies-out ((request request))
+  (cookies-out (request-id request)))
+
+(defmethod cookies-out ((id uuid))
+  (get-redis-hash-keywords id :cookies-out))
+
+(defmethod (setf cookies-out) (alist (request request))
+  (setf (cookies-out (request-id request))
+        alist))
+
+(defmethod (setf cookies-out) (alist (id uuid))
+  (set-redis-hash id :cookies-out alist))
 
 (defun stringify-cookies (cookies)
   (->> cookies
@@ -59,61 +127,44 @@
          (lambda (cookie)
            (let ((name (car cookie))
                  (value (cdr cookie)))
-           (str:concat name "=" value))))
+             (str:concat name "=" value))))
     (str:join "; ")))
 
-(defmethod request-new-page ((request request) new-page)
-  (with-slots (headers cookies-in cookies-out query-arguments)
-      request
-    (make-instance
-     'request
-     :previous-page new-page
-     :headers headers
-     :cookies-in cookies-in
-     :cookies-out cookies-out
-     :query-arguments query-arguments)))
+(defmethod query-arguments ((id uuid))
+  (get-redis-hash id :query-arguments))
+
+(defmethod query-arguments ((request request))
+  (query-arguments (request-id request)))
+
+(defmethod (setf query-arguments) (alist (request request))
+  (setf (query-arguments (request-id request)) alist))
+
+(defmethod (setf query-arguments) (alist (id uuid))
+  (let ((query-arguments (query-arguments id)))
+    (loop with hash = (issr-keys id :query-arguments)
+          for (key . value) in query-arguments do
+            (red:hdel hash key))
+    (set-redis-hash
+     id :query-arguments
+     (-> alist
+       (append query-arguments)
+       (remove-duplicates :key 'car :test 'string= :from-end t)))))
 
 (defmethod request-headers ((request request))
+  (request-headers (request-id request)))
+
+(defmethod request-headers ((id uuid))
   (acons :cookie
-         (stringify-cookies (request-cookies-in request))
-         (slot-value request 'headers)))
+         (stringify-cookies (cookies-in id))
+         (headers (headers id))))
 
 (defmethod request-uri ((request request))
-  (->> request
-    request-headers
-    (yxorp:header :uri)))
+  (red:hget (issr-key (request-id request)) "uri"))
 
 (defmethod request-url ((request request))
   (str:concat
-   (->> request
-     request-headers
-     (yxorp:header :host))
+   (red:hget (issr-key (request-id request)) "host")
    (request-uri request)))
-
-(defmethod request-new-headers ((request request) new-headers)
-  (with-slots (previous-page cookies-in cookies-out query-arguments)
-      request
-    (make-instance
-     'request
-     :previous-page previous-page
-     :headers new-headers
-     :cookies-in cookies-in
-     :cookies-out cookies-out
-     :query-arguments query-arguments)))
-
-(defmethod request-new-query-arguments ((request request) new-query-arguments)
-  (with-slots (previous-page headers cookies-in cookies-out query-arguments)
-      request
-    (make-instance
-     'request
-     :previous-page previous-page
-     :headers headers
-     :cookies-in cookies-in
-     :cookies-out cookies-out
-     :query-arguments
-     (-> new-query-arguments
-       (append query-arguments)
-       (remove-duplicates :key 'car :test 'string= :from-end t)))))
 
 (defun extract-request-cookies (headers)
   (-<>> headers
@@ -137,34 +188,6 @@
     (map 'list (curry 'str:split "="))
     (map 'list (curry 'apply 'cons))))
 
-(defmethod request-new-cookies-in ((request request) new-cookies)
-  (with-slots (previous-page headers cookies-in cookies-out query-arguments)
-      request
-    (make-instance
-     'request
-     :previous-page previous-page
-     :headers headers
-     :cookies-in new-cookies
-     :cookies-out cookies-out
-     :query-arguments query-arguments)))
-
-(defmethod request-new-cookies-out ((request request) new-cookies)
-  (with-slots (previous-page headers cookies-in cookies-out query-arguments)
-      request
-    (make-instance
-     'request
-     :previous-page previous-page
-     :headers headers
-     :cookies-in
-     (-> new-cookies
-       response-cookies-request-cookies
-       (append cookies-in)
-       (remove-duplicates :key 'car :test 'string= :from-end t))
-     :cookies-out new-cookies
-     :query-arguments query-arguments)))
-
-(defmethod request-headers ((request request)))
-
 (defmacro define-map-accessors-with-lock (name map lock)
   `(progn
      (defun ,(intern (str:concat "GET-" (symbol-name name))) (key)
@@ -185,31 +208,13 @@
   "Key: client socket; Value: request")
 (define-map-accessors-with-lock client-request *clients* *clients*-lock)
 
-(defun client-request (client)
-  (first (get-client-request-page client)))
-
-(defun client-page (client)
-  (second (get-client-request-page client)))
-
 (defvar *ids*-lock (bt:make-lock))
 (defvar *ids*
   (tg:make-weak-hash-table
    :test 'equalp
    :weakness :value)
-  "Key: client id; Value: client socket")
+  "Key: client id; Value: client socket (and sometimes request)")
 (define-map-accessors-with-lock id-client *ids* *ids*-lock)
-
-(defun random-alphanum (&key (length 12) not-in)
-  "Return alphanumeric string of length LENGTH not contained in NOT-IN."
-  (loop with alphanum
-          = (map 'string #'code-char
-                 (loop repeat length
-                       collect
-                       (if (zerop (random 2))
-                           (+ (random 10) 48)
-                           (+ (random 26) 97))))
-        while (member alphanum not-in)
-        finally (return alphanum)))
 
 (defun api-handler (app-server)
   (loop with instruction = (jojo:parse (read-line app-server)) do
@@ -302,17 +307,15 @@ Return 1: t if contained files, nil otherwise."
     (yxorp:write-body-and-headers server-stream)))
 
 (defun rr (client host port show-errors args)
-  (let ((request
-          (-> client
-            get-client-request
-            (request-new-query-arguments args))))
+  (let ((request (get-client-request client)))
+    (setf (query-arguments request) args)
     (with-open-stream
         (server (socket-stream
                  (socket-connect
                   host port :element-type '(unsigned-byte 8))))
-      (yxorp::with-socket-handler-case server
-        (let ((yxorp:*headers* (request-headers request)))
-          (write-args (request-query-arguments request) server))
+      ;; (yxorp::with-socket-handler-case server
+      (let ((yxorp:*headers* (headers request)))
+        (write-args (query-arguments request) server))
         (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
           (cond
             ((<= 300 (yxorp:header :status) 399)
@@ -345,16 +348,13 @@ Return 1: t if contained files, nil otherwise."
             (let ((instructions (diff (request-previous-page request)
                                       new-page))
                   (new-cookies (extract-response-cookies yxorp:*headers*)))
-              (unless (= (length (request-cookies-out request))
+              (unless (= (length (cookies-out request))
                          (length
                           (-> new-cookies
-                            (append (request-cookies-out request))
+                            (append (cookies-out request))
                             (remove-duplicates :test 'string=))))
                 (push (i:cookie) instructions))
-              (set-client-request
-               client
-               (-> request
-                 (request-new-page new-page)
-                 (request-new-cookies-out new-cookies)))
+              (setf (request-previous-page request) new-page)
+              (setf (cookies-out request) new-cookies)
               (when instructions
-                (pws:send client (jojo:to-json instructions :from :list))))))))))
+                (pws:send client (jojo:to-json instructions :from :list)))))))));)

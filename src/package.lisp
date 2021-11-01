@@ -47,6 +47,7 @@
                 #:compose
                 #:make-keyword)
   (:import-from #:binding-arrows
+                #:some->>
                 #:some-<>>
                 #:-<>>
                 #:some-<>
@@ -73,7 +74,9 @@
                 #:easy-acceptor
                 #:define-easy-handler)
   (:import-from #:urlencode
-                #:urlencode))
+                #:urlencode)
+  (:import-from #:uuid
+                #:uuid))
 
 (defpackage issr-config
   (:use #:cl)

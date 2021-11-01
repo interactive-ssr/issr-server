@@ -3,7 +3,7 @@
 (defvar *show-errors-to-client* nil
   "When non-nil, errors after the initial connection can be seen in console.error.")
 
-(defun make-ws-message (host port show-errors)
+(defun make-ws-message (host port show-errors redis-host redis-port redis-pass)
   (lambda (socket message)
     (if (str:starts-with-p "id:" message)
         ;; first connection
@@ -16,11 +16,12 @@
               ;; (run-application-hook id "disconnect" host port)
               (pws:send socket (jojo:to-json (list (i:reconnect))))))
         ;; giving parameters to update page
-        (handler-case (rr socket host port show-errors (jojo:parse message :as :alist))
+        (handler-case
+            (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+              (rr socket host port show-errors (jojo:parse message :as :alist)))
           (jojo:<jonathan-error> ()
             (pws:send socket (jojo:to-json (list (i:reconnect))))
             (pws:close socket))))))
-
 
 (defun make-ws-close (host port)
   (declare (ignore host port))

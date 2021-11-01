@@ -34,32 +34,36 @@
                 plump:parse
                 plump-dom-dom
                 ensure-ids))
-        (id (random-alphanum)))
-    (insert-js-call page id)
+        (id (uuid:make-v4-uuid)))
+    (insert-js-call page (princ-to-string id))
     (setf (yxorp:header :method yxorp:*request-headers*)
           "POST"
           (yxorp:header :content-type yxorp:*request-headers*)
           "application/x-www-form-urlencoded")
-    (set-id-client id (make-request
-                       :headers (append yxorp:*request-headers*
-                                        yxorp:*headers*)
-                       :previous-page page))
+    (set-id-client
+     (princ-to-string id)
+     (make-request
+      :id id
+      :headers yxorp:*request-headers*
+      :previous-page page))
     (princ-to-string page)))
 
-(defun response-filter (body)
-  (cond
-    ;; add issr ids and js
-    ((and (str:containsp "html" (yxorp:header :content-type)
-                         :ignore-case t)
-          (not (str:starts-with-p "/-issr/reconnect"
-                                  (yxorp:header :uri yxorp:*request-headers*)))
-          (and (str:containsp "rr(" body :ignore-case nil)))
-     (process-response body))
-    ;; use issr favicon
-    ((and (string= "/favicon.ico" (yxorp:header :uri yxorp:*request-headers*))
-          (= 404 (yxorp:header :status)))
-     (prog1 ""
-       (setf (yxorp:header :status) 307
-             (yxorp:header :message) "Temporary Redirect"
-             (yxorp:header :location) "/-issr/favicon.ico")))
-    (:else body)))
+(defun make-response-filter (redis-host redis-port redis-pass)
+  (lambda (body)
+    (cond
+      ;; add issr ids and js
+      ((and (str:containsp "html" (yxorp:header :content-type)
+                           :ignore-case t)
+            (not (str:starts-with-p "/-issr/reconnect"
+                                    (yxorp:header :uri yxorp:*request-headers*)))
+            (and (ppcre:scan "rr\s*[(]" body)))
+       (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+         (process-response body)))
+      ;; use issr favicon
+      ((and (string= "/favicon.ico" (yxorp:header :uri yxorp:*request-headers*))
+            (= 404 (yxorp:header :status)))
+       (prog1 ""
+         (setf (yxorp:header :status) 307
+               (yxorp:header :message) "Temporary Redirect"
+               (yxorp:header :location) "/-issr/favicon.ico")))
+      (:else body))))
