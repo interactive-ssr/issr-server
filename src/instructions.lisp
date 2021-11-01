@@ -1,4 +1,4 @@
-(in-package #:issr.instructions)
+(in-package #:issr.server.instructions)
 
 (defmethod name ((this string))
   this)

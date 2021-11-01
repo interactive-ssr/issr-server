@@ -1,4 +1,4 @@
-(defpackage issr.dom
+(defpackage issr.server.dom
   (:use #:cl)
   (:import-from #:plump)
   (:import-from #:alexandria
@@ -21,9 +21,9 @@
    #:ensure-ids
    #:plump-dom-dom))
 
-(defpackage issr.instructions
+(defpackage issr.server.instructions
   (:use #:cl)
-  (:import-from #:issr.dom
+  (:import-from #:issr.server.dom
                 #:node
                 #:ensure-ids)
   (:import-from #:binding-arrows
@@ -38,10 +38,10 @@
    #:reconnect
    #:error))
 
-(defpackage issr
-  (:use #:cl #:issr.dom)
+(defpackage issr.server
+  (:use #:cl #:issr.server.dom)
   (:local-nicknames
-   (#:i #:issr.instructions))
+   (#:i #:issr.server.instructions))
   (:import-from #:alexandria
                 #:curry
                 #:compose

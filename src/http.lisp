@@ -1,4 +1,4 @@
-(in-package #:issr)
+(in-package #:issr.server)
 
 (defun set-hunchentoot-response-cookie (string)
   (let ((parts (->> string

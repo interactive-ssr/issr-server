@@ -1,4 +1,4 @@
-(in-package #:issr)
+(in-package #:issr.server)
 
 (deftype port ()
   'integer)

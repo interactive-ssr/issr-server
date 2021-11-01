@@ -1,4 +1,4 @@
-(in-package #:issr)
+(in-package #:issr.server)
 
 (defvar *show-errors-to-client* nil
   "When non-nil, errors after the initial connection can be seen in console.error.")

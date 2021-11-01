@@ -1,4 +1,4 @@
-(in-package #:issr.dom)
+(in-package #:issr.server.dom)
 
 (defvar +void-tags+
   (list :br

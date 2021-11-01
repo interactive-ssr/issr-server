@@ -1,4 +1,4 @@
-(in-package #:issr)
+(in-package #:issr.server)
 
 (defvar *ws-server* nil)
 (defvar *ht-server* nil)

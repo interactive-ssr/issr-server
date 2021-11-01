@@ -1,4 +1,4 @@
-(in-package #:issr)
+(in-package #:issr.server)
 
 (defun diff-attributes (old new)
   (let ((cons-list
