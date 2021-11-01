@@ -27,6 +27,14 @@
        (values (first parts)
                (parse-integer (second parts)))))))
 
+(defstruct (redis-config (:constructor redis-config))
+  (destination 6379
+   :type destination
+   :read-only t)
+  (password (princ-to-string (uuid:make-v4-uuid))
+   :type string
+   :read-only t))
+
 (defstruct (config (:constructor config))
   (port 3000
    :type port
@@ -34,14 +42,8 @@
   (show-errors-to-client nil
    :type boolean
    :read-only t)
-  (api-port nil
-   :type (or port null)
-   :read-only t)
   (application-destination 8080
    :type destination
-   :read-only t)
-  (application-hook-destination nil
-   :type (or destination null)
    :read-only t)
   (http-port 10000
    :type port
@@ -51,6 +53,9 @@
    :read-only t)
   (ssl nil
    :type (or ssl-config null)
+   :read-only t)
+  (redis (redis-config)
+   :type redis-config
    :read-only t))
 
 (defun read-config (file)
