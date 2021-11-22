@@ -109,14 +109,14 @@
   (cookies-in (request-id request)))
 
 (defmethod cookies-in ((id uuid))
-  (get-redis-hash-keywords id :cookies-in))
+  (get-redis-hash id :cookies-in))
 
 (defmethod (setf cookies-in) (alist (request request))
   (setf (cookies-in (request-id request))
         alist))
 
 (defmethod (setf cookies-in) (alist (id uuid))
-  (set-redis-hash-keywords id :cookies-in alist))
+  (set-redis-hash id :cookies-in alist))
 
 (defun stringify-cookies (cookies)
   (->> cookies
