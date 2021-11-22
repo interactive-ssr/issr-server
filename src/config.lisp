@@ -39,7 +39,7 @@
   (port 3000
    :type port
    :read-only t)
-  (show-errors-to-client nil
+  (show-errors nil
    :type boolean
    :read-only t)
   (application-destination 8080
