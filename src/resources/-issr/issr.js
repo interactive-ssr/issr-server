@@ -1,45 +1,34 @@
 if (wsurl == undefined) {
-    var socket;
-    var wsurl;
-    var previousData = {};
-    var textNodes = {};
-    var issrId;
-    var drrs = {};
-    var delay = 800;
+    var socket,
+        wsurl = `ws${location.protocol == 'https:'? 's' : ''}://${location.hostname}:${location.port}/-issr`,
+        previousData = {},
+        registeredActions = new Set(),
+        textNodes = {},
+        issrId,
+        drrs = {},
+        delay = 800;
 }
 
 File.prototype.content = "";
-File.prototype.toString = function () {
-    return this.content;
-}
-FileList.prototype.toString = function () {
-    return Array.from(this, function (file) {
-        return file? file.toString() : "";
-    }).join(",");
-}
+File.prototype.toString = () => this.content;
+FileList.prototype.toString = () => Array.from(this, file => file? file.toString() : "").join(",");
 
 /**
  * attr
  * Return the ATTRIBUTE member, attribute, or undefined of OBJ
  */
-function attr (obj, attribute) {
-    if (obj) {
-        if (obj[attribute] || obj[attribute] == "") {
-            return obj[attribute];
-        } else if (obj.getAttribute) {
-            return obj.getAttribute(attribute);
-        }
-    }
-    return undefined
-}
+const
+attr = (obj, attribute) => obj?
+    (obj[attribute] || obj[attribute] == "" ?
+     obj[attribute]:
+     (obj.getAttribute && obj.getAttribute(attribute))):
+    undefined,
 
 /**
  * elementById
  * like document.getElementById, but also consults textNodes
  */
-function elementById (id) {
-    return document.getElementById(id) || textNodes[id];
-}
+elementById = id => document.getElementById(id) || textNodes[id],
 
 /**
  * update
@@ -53,10 +42,10 @@ function elementById (id) {
  * - ["reconnect"]: reset the websocket and send the previousData.
  * - ["error", message]: display server error to console.error
  */
-function update (instructions) {
+update = instructions => {
     for (let instruction of instructions) {
         switch (instruction[0]) {
-        case "mod": {
+        case "mod":
             let node = elementById(instruction[1]);
             if (node) {
                 for (let i = 2; i < instruction.length; ++i) {
@@ -78,15 +67,15 @@ function update (instructions) {
                     }
                 }
             }
-            break;}
-        case "delete": {
+            break;
+        case "delete":
             for (let i = 1; i < instruction.length; ++i) {
                 let node = elementById(instruction[i]);
                 freeTextNodes(node);
                 node.remove();
             }
-            break;}
-        case "insert": {
+            break;
+        case "insert":
             let parent = elementById(instruction[1]);
             if (parent) {
                 let node = document.createElement('nil');
@@ -94,8 +83,8 @@ function update (instructions) {
                 node.outerHTML = instruction[3];
                 trackTextNodes(parent);
             }
-            break;}
-        case "cookie": {
+            break;
+        case "cookie":
             fetch("-issr/cookie", {
                 method:"POST",
                 headers: {
@@ -103,44 +92,43 @@ function update (instructions) {
                 },
                 body: "id=" + issrId
             });
-            break;}
-        case "redirect": {
+            break;
+        case "redirect":
             document.location = instruction[1];
-            break;}
-        case "reconnect": {
+            break;
+        case "reconnect":
             reconnect();
-            break;}
-        case "error": {
+            break;
+        case "error":
             let newhtml = open("about:blank")
                 .document.open("text/html","replace");
             newhtml.write(instruction[1]);
             newhtml.close()
-            break;}
+            break;
         }
     }
-}
+},
 
 /**
  * connect
  * Connect to the websocket on the server.
  * ID: the unique server generated id for identifying with the websocket.
  */
-function connect (id) {
+connect = id => {
     issrId = id;
     if (!window.WebSocket) {
         alert("Your browser doesn't support websockets. This website might not work properly.");
         return;
     }
-    secure = (location.protocol == "https:"? "s" : "");
-    wsurl = `ws${secure}://${location.hostname}:${location.port}/-issr`;
     socket = new WebSocket(wsurl);
     socket.onmessage =
         event => update(JSON.parse(event.data));
     socket.onopen =
         event => socket.send("id:" + id);
-}
+},
 
-async function getValue (obj) {
+
+getValue = async obj => {
     let value = attr(obj, "value");
     if (obj.type === "radio" ||
         obj.type === "checkbox") {
@@ -154,16 +142,15 @@ async function getValue (obj) {
                 if (!file.content) {
                     let arrayBuffer = await new Response(file).arrayBuffer();
                     file.content = btoa(
-                        new Uint8Array(arrayBuffer).reduce(function(data, byte) {
-                            return data + String.fromCharCode(byte);
-                        }, "")
+                        new Uint8Array(arrayBuffer).reduce((data, byte) =>
+                            data + String.fromCharCode(byte), "")
                     );
                 }
             }
         }
     }
     return value;
-}
+},
 
 /**
  * rr - re-render
@@ -173,7 +160,7 @@ async function getValue (obj) {
  *
  * Usually, you would want to call rr as rr() or rr(this) from something like onclick="rr(this)", but it can be called as rr({action:"custom-name",value:"custom-value"}...) for custom results.
  */
-async function rr (...objs) {
+rr = async (...objs) => {
     let elements = document.querySelectorAll("[name]"),
         data = {},
         actions = document.querySelectorAll("[action]");
@@ -200,16 +187,11 @@ async function rr (...objs) {
                 || "";
         }
     }
-    for (let element of actions) {
-        let name = attr(element, "action");
-        if (!data[name]) {
-            data[name] = "";
-        }
-    }
-
     // generate params based on new and previous data
+    actions.forEach(obj => registeredActions.add(attr(obj, "action")));
     jsonFiles(data);
     let changed = keepChanged(previousData, data);
+    registeredActions.forEach(action => changed[action]? false : changed[action] = "")
     for (let obj of objs) {     // always ensure the data of objs gets sent
         let action = attr(obj, "action"),
             name = attr(obj, "name");
@@ -228,9 +210,9 @@ async function rr (...objs) {
         socket.send(params);
     }
     return true;
-}
+},
 
-function drr (id, delay = this.delay) {
+drr = (id, delay = this.delay) => {
     let debounce = (func, delay) => {
         let timeout;
         return (...args) => {
@@ -245,9 +227,9 @@ function drr (id, delay = this.delay) {
                 rr(...objs);
                 delete drrs[id];
             }, delay));
-}
+},
 
-async function reconnect () {
+reconnect = async () => {
     let response = await fetch("/-issr/reconnect", {
         method: "POST",
         headers: {
@@ -264,37 +246,31 @@ async function reconnect () {
     newhtml.write(text);
     newhtml.close();
     trackTextNodes(document);
-    // Array.from(document.getElementsByTagName("script"), script => {
-    //     if (!script.type || script.type.includes("javascript")) {
-    //         eval(script.text);
-    //     }
-    // });
-}
+},
 
-function keepChanged (olddata, newdata) {
-    let updated = {};
+keepChanged = (olddata, newdata) => {
+    let updated = {},
+        key = (data, name)=> data[name]? data[name].toString() : "";
     for (let name of Object.keys(newdata)) {
-        if (olddata[name] == undefined ||
-            (olddata[name]? olddata[name].toString() : "")
-            !==
-            (newdata[name]? newdata[name].toString() : "")) {
+        if (olddata[name] == undefined
+            || key(olddata, name) !== key(newdata, name)) {
             updated[name] = newdata[name];
         }
     }
     return updated;
-}
+},
 
-function jsonFiles (data) {
+jsonFiles = data => {
     for (let key of Object.keys(data)) {
         if (data[key]? data[key].constructor === FileList : null) {
-            data[key] = Array.from(data[key], function (file) {
-                return [true, file.content, file.name, file.type];
-            });
+            data[key] = Array.from(data[key], file =>
+                [true, file.content, file.name, file.type]
+            );
         }
     }
-}
+},
 
-function elseTraverse (node, condition, action) {
+elseTraverse = (node, condition, action) => {
     for(let child of node.childNodes) {
         if (condition(child)) {
             action(child);
@@ -302,42 +278,41 @@ function elseTraverse (node, condition, action) {
             elseTraverse(child, condition, action);
         }
     }
-}
+},
 
 /**
  * trackTextNodes
  * Add text nodes to textNodes using the data in the parent TN tag.
  */
-function trackTextNodes (node) {
-    elseTraverse(
-        node,
-        // if
-        child => child.nodeType == Node.ELEMENT_NODE
-            && child.tagName == "TN"
-            && child.id,
-        // then
-        child => {
-            let textNode = child.childNodes[0];
-            textNode.id = child.id;
-            textNodes[child.id] = textNode;
-            child.parentNode.replaceChild(textNode, child);
-        });
-}
+trackTextNodes = node =>
+elseTraverse(
+    node,
+    // if
+    child => child.nodeType == Node.ELEMENT_NODE
+        && child.tagName == "TN"
+        && child.id,
+    // then
+    child => {
+        let textNode = child.childNodes[0];
+        textNode.id = child.id;
+        textNodes[child.id] = textNode;
+        child.parentNode.replaceChild(textNode, child);
+    }),
 
 /**
  * freeTextNodes
  * Garbage collect text nodes that are children of NODE removing them from
  * textNodes.
  */
-async function freeTextNodes (node) {
-    elseTraverse(
-        node,
-        // if
-        child => [Node.TEXT_NODE, Node.COMMENT_NODE]
-            .includes(child.nodeType)
-            && child.id,
-        // then
-        child => delete textNodes[child.id]
-    );
-}
+freeTextNodes = async node =>
+elseTraverse(
+    node,
+    // if
+    child => [Node.TEXT_NODE, Node.COMMENT_NODE]
+        .includes(child.nodeType)
+        && child.id,
+    // then
+    child => delete textNodes[child.id]
+);
+
 document.addEventListener("DOMContentLoaded", () => { trackTextNodes(document) });
