@@ -153,14 +153,14 @@
 (defmethod request-headers ((id uuid))
   (acons :cookie
          (stringify-cookies (cookies-in id))
-         (headers (headers id))))
+         (headers id)))
 
 (defmethod request-uri ((request request))
-  (red:hget (issr-key (request-id request)) "uri"))
+  (red:hget (issr-keys (request-id request)) "uri"))
 
 (defmethod request-url ((request request))
   (str:concat
-   (red:hget (issr-key (request-id request)) "host")
+   (red:hget (issr-keys (request-id request)) "host")
    (request-uri request)))
 
 (defun extract-request-cookies (headers)
