@@ -58,8 +58,15 @@
   (let* ((hash (issr-keys id key))
          (keys (red:hkeys hash)))
     (loop for key in keys
-          collect (cons key
-                        (red:hget hash key)))))
+          collect
+          (cons key
+                (block exit
+                  (loop
+                    (block continue
+                      (handler-case
+                          (return-from exit (jojo:parse (red:hget hash key)))
+                        (jojo:<jonathan-incomplete-json-error> ()
+                          (return-from continue))))))))))
 
 (defun get-redis-hash-keywords (id key)
   (map 'list
@@ -71,7 +78,8 @@
 (defun set-redis-hash (id key alist)
   (let* ((hash (issr-keys id key)))
     (loop for (key . value) in alist do
-      (red:hset hash key value))))
+      (red:hset hash key
+                (jojo:to-json value)))))
 
 (defun set-redis-hash-keywords (id key alist)
   (set-redis-hash
