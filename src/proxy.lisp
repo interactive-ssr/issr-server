@@ -11,16 +11,15 @@
         (config-application-destination config))))
 
 (defun insert-js-call (node id)
-  (let* ((html (some-<> node
-                 node-children
-                 (find :html <> :key 'node-name)))
-         (head (some-<> html
-                 node-children
-                 (find :head <> :key 'node-name)))
-         (js (list
-              (make-node :script `((:src . ,(str:concat "/-issr/" *js-name*))))
-              (make-node :script '((:noupdate . "T"))
-                         (format nil "connect(~S)" id)))))
+  (let ((head (some-<> node
+                node-children
+                (find :html <> :key 'node-name)
+                node-children
+                (find :head <> :key 'node-name)))
+        (js (list
+             (make-node :script `((:src . ,(str:concat "/-issr/" *js-name*))))
+             (make-node :script '((:noupdate . "T"))
+                        (format nil "connect(~S)" id)))))
     (if head
         (setf (node-children head)
               (append (node-children head) js))
