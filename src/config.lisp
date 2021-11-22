@@ -73,3 +73,10 @@
                  (format *error-output* "There is a problem with your config file:~%~A~%"
                          condition)))
         (setq *package* package)))))
+
+(defmacro env-or (env else)
+  (let ((menv (gensym)))
+    `(let ((,menv ,env))
+       (if (str:blankp (uiop:getenv ,menv))
+           ,menv
+           ,else))))
