@@ -43,36 +43,36 @@
         (server (socket-stream
                  (socket-connect
                   host port :element-type '(unsigned-byte 8))))
-      (yxorp::with-socket-handler-case server
-        (let ((uri (header-in* "issr-uri"))
-              (args (jojo:parse (raw-post-data :external-format :utf8) :as :alist)))
-          (let* ((yxorp:*headers*
-                   (-> (list (cons :method "POST")
-                             (cons :uri uri)
-                             (cons :http-version "HTTP/1.1")
-                             (cons :accept "text/html")
-                             (cons :host (host))
-                             (cons :user-agent (user-agent))
-                             (cons :cookie (stringify-cookies
-                                            (hunchentoot:cookies-in*))))
-                     (append (headers-in*))
-                     (remove-duplicates :key 'car :from-end t)))
-                 (yxorp:*request-headers* yxorp:*headers*))
-            (write-args args server)
-            (let* ((yxorp:*headers* (yxorp::parse-response-headers server))
-                   (encoding
-                     (or (some-<>> :content-type
-                           yxorp:header
-                           (str:split ";")
-                           (map 'list 'str:trim)
-                           (find "charset" <> :test 'str:starts-with-p)
-                           (str:split "=")
-                           second
-                           str:upcase
-                           make-keyword)
-                         (when (str:containsp "text" (yxorp:header :content-type))
-                           :iso-8859-1))))
-              (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
-                (-> server
+      (let ((uri (header-in* "issr-uri"))
+            (args (jojo:parse (raw-post-data :external-format :utf8) :as :alist)))
+        (let* ((yxorp:*headers*
+                 (-> (list (cons :method "POST")
+                           (cons :uri uri)
+                           (cons :http-version "HTTP/1.1")
+                           (cons :accept "text/html")
+                           (cons :host (host))
+                           (cons :user-agent (user-agent))
+                           (cons :issr-id (princ-to-string (uuid:make-v4-uuid)))
+                           (cons :cookie (stringify-cookies
+                                          (hunchentoot:cookies-in*))))
+                   (append (headers-in*))
+                   (remove-duplicates :key 'car :from-end t)))
+               (yxorp:*request-headers* yxorp:*headers*))
+          (write-headers-body-args args server)
+          (let* ((yxorp:*headers* (yxorp::parse-response-headers server))
+                 (encoding
+                   (or (some-<>> :content-type
+                         yxorp:header
+                         (str:split ";")
+                         (map 'list 'str:trim)
+                         (find "charset" <> :test 'str:starts-with-p)
+                         (str:split "=")
+                         second
+                         str:upcase
+                         make-keyword)
+                       (when (str:containsp "text" (yxorp:header :content-type))
+                         :iso-8859-1))))
+            (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+              (-> server
                 (yxorp::read-body 'process-response)
-                (flex:octets-to-string :external-format encoding))))))))))
+                (flex:octets-to-string :external-format encoding)))))))))
