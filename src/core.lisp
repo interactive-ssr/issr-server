@@ -208,25 +208,6 @@
   "Key: client id; Value: client socket (and sometimes request)")
 (define-map-accessors-with-lock id-client *ids* *ids*-lock)
 
-(defun api-handler (app-server)
-  (loop with instruction = (jojo:parse (read-line app-server)) do
-    (match instruction
-      ((list "rr" id))
-      ((list "header" id key)
-       (->> id
-         get-id-client
-         client-request
-         (yxorp:header (make-keyword (str:upcase key)))
-         (list "result")
-         jojo:to-json
-         (write :stream app-server))))))
-
-(defun run-application-hook (id hook host port)
-  (with-open-stream
-      (stream (socket-stream (socket-connect host port)))
-    (write
-     (jojo:to-json (list hook id))
-     :stream stream)))
 
 (defun flatten-args (alist)
   (apply 'concatenate 'list

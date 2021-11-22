@@ -23,15 +23,28 @@
             (pws:send socket (jojo:to-json (list (i:reconnect))))
             (pws:close socket))))))
 
-(defun make-ws-close (host port)
-  (declare (ignore host port))
+(defun make-ws-close (redis-host redis-port redis-pass)
   (lambda (socket)
-    (-> socket
-      get-client-request
-      request-headers
-      (yxorp:header :issr-id)
-      remove-id-client)
-    (remove-client-request socket)))
+    (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+      (let ((id (some->> socket
+                  get-client-request
+                  request-headers
+                  (yxorp:header :issr-id)))
+            (channel (str:concat "issr-" (server-uuid))))
+        (when (redis-channel-exists-p channel)
+          (red:publish channel
+                       (jojo:to-json (list "issr-disconnect" id)))
+          ;; wait for disconnect hook to be done
+          (let ((channel (str:concat "issr-" id "-disconnect-done")))
+            (red:subscribe channel)
+            (redis:expect :anything)
+            (red:unsubscribe channel)))
+        (red:del (issr-keys id :cookies-in))
+        (red:del (issr-keys id :cookies-out))
+        (red:del (issr-keys id :headers))
+        (red:del (issr-keys id :query-arguments))
+        (remove-id-client id))
+      (remove-client-request socket))))
 
 (defun ws-error (socket condition)
   (when *show-errors-to-client*

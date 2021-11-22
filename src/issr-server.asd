@@ -30,4 +30,5 @@
    (:file "proxy")
    (:file "websocket")
    (:file "http")
+   (:file "hooks")
    (:file "main")))
