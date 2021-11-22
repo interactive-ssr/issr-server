@@ -28,21 +28,26 @@
               (append (node-children node) js))))
   node)
 
+(defun process-request (body)
+  (setf (yxorp:header :issr-id)
+        (princ-to-string (uuid:make-v4-uuid)))
+  body)
+
 (defun process-response (body)
   (let ((page (-> body
                 plump:parse
                 plump-dom-dom
                 ensure-ids))
-        (id (uuid:make-v4-uuid)))
-    (insert-js-call page (princ-to-string id))
+        (id (yxorp:header :issr-id yxorp:*request-headers*)))
+    (insert-js-call page id)
     (setf (yxorp:header :method yxorp:*request-headers*)
           "POST"
           (yxorp:header :content-type yxorp:*request-headers*)
           "application/x-www-form-urlencoded")
     (set-id-client
-     (princ-to-string id)
+     id
      (make-request
-      :id id
+      :id (uuid:make-uuid-from-string id)
       :headers yxorp:*request-headers*
       :cookies-in
       (append (extract-request-cookies yxorp:*request-headers*)
