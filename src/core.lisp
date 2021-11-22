@@ -10,10 +10,12 @@
   ((id :reader request-id
        :type uuid
        :initarg :id)
-   (previous-page :reader request-previous-page
+   (previous-page :accessor request-previous-page
                   :type plump:root
-                  :initarg :previous-page
-                  :accessor request-previous-page)))
+                  :initarg :previous-page)
+   (cookies-out :accessor cookies-out
+                :type list
+                :initform (list))))
 
 (defun make-request (&key id headers previous-page cookies-in cookies-out query-arguments)
   (let* ((str:*omit-nulls* t)
@@ -115,19 +117,6 @@
 
 (defmethod (setf cookies-in) (alist (id uuid))
   (set-redis-hash-keywords id :cookies-in alist))
-
-(defmethod cookies-out ((request request))
-  (cookies-out (request-id request)))
-
-(defmethod cookies-out ((id uuid))
-  (get-redis-hash-keywords id :cookies-out))
-
-(defmethod (setf cookies-out) (alist (request request))
-  (setf (cookies-out (request-id request))
-        alist))
-
-(defmethod (setf cookies-out) (alist (id uuid))
-  (set-redis-hash id :cookies-out alist))
 
 (defun stringify-cookies (cookies)
   (->> cookies
