@@ -45,6 +45,11 @@
      (make-request
       :id id
       :headers yxorp:*request-headers*
+      :cookies-in
+      (append (extract-request-cookies yxorp:*request-headers*)
+              (some->> yxorp:*headers*
+                extract-response-cookies
+                response-cookies-request-cookies))
       :previous-page page))
     (princ-to-string page)))
 

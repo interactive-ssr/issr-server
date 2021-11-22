@@ -41,12 +41,7 @@
                              (urlencode:urldecode (or (second pair) "")))))
                 (append query-arguments))))
       (when cookies-in
-        (setf (cookies-in request)
-              (append (extract-request-cookies headers)
-                      (some->> headers
-                        extract-response-cookies
-                        response-cookies-request-cookies)
-                      cookies-in)))
+        (setf (cookies-in request) cookies-in))
       (when cookies-out
         (setf (cookies-out request) cookies-out))
       (when headers
