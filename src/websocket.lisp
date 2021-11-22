@@ -9,12 +9,14 @@
         ;; first connection
         (let* ((id (subseq message 3))
                (info (get-id-client id)))
-          (if (typep info 'request)
+          (if (not (typep info 'request))
+              (pws:send socket (jojo:to-json (list (i:reconnect))))
               (progn
                 (set-client-request socket info)
-                (set-id-client id socket))
-              ;; (run-application-hook id "disconnect" host port)
-              (pws:send socket (jojo:to-json (list (i:reconnect))))))
+                (set-id-client id socket)
+                (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+                  (red:publish (str:concat "issr-" (server-uuid))
+                               (jojo:to-json (list "issr-connect" id)))))))
         ;; giving parameters to update page
         (handler-case
             (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
