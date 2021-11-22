@@ -227,8 +227,8 @@
               alist)))
 
 (defun alist-query-string (alist)
-  ;; must be flattened
   (->> alist
+    flatten-args
     (map 'list
          (lambda (cons)
            (format nil "~A=~A"
@@ -236,98 +236,126 @@
                    (urlencode (cdr cons)))))
     (str:join "&")))
 
-(defun alist-write-files (alist)
-  "Save file content in a /tmp file, and replace with path.
-Return 0: alist with file names instead of content.
-Return 1: t if contained files, nil otherwise."
+(defun redis-channel-exists-p (channel)
+  (redis:tell :pubsub :channels channel)
+  (redis:expect :multi))
+
+(defun alist-write-files (alist &optional client-uuid)
+  "Save file content in a /tmp file, and replace with path."
   ;; must be flattened
-  (map 'list
+  (let ((handle-value
+          (lambda (value)
+            (if (stringp value)
+                value
+                (let* ((content (second value)) ; first value is t if it is a file
+                       (tmp-file-name
+                         (->> content
+                           flex:string-to-octets
+                           (ironclad:digest-sequence :sha1)
+                           ironclad:byte-array-to-hex-string
+                           (str:concat "issr-")
+                           (make-pathname
+                            :directory "tmp"
+                            :name))))
+                  (unless (uiop:file-exists-p tmp-file-name)
+                    (with-open-file
+                        (tmp-file tmp-file-name
+                                  :direction :output
+                                  :if-does-not-exist :create
+                                  :if-exists :supersede
+                                  :element-type '(unsigned-byte 8))
+                      (-> content
+                        base64:base64-string-to-usb8-array
+                        (write-sequence tmp-file))))
+                  (let ((file-info (map 'list 'cons
+                                        (list "file" "name" "content-type")
+                                        (apply 'list (princ-to-string tmp-file-name)
+                                               (nthcdr 2 value))))
+                        (channel (str:concat "issr-" (server-uuid))))
+                    (if (redis-channel-exists-p channel)
+                        (progn
+                          (red:publish channel
+                                       (jojo:to-json (list "issr-file-upload"
+                                                           (princ-to-string client-uuid)
+                                                           file-info)
+                                                     :from :alist))
+                          (let ((channel (str:concat "issr-" client-uuid "-file-upload-done")))
+                            (red:subscribe channel)
+                            (prog1 (redis:expect :anything)
+                            (red:unsubscribe channel))))
+                        (jojo:to-json file-info :from :alist))))))))
+    (map 'list
        (lambda (cons)
          (let ((name (car cons))
                (value (cdr cons)))
-           (if (not (listp value))
-               cons
-               ;; first value is t if it is a file
-               (let ((content (second value))
-                     (tmp-file-name (make-pathname
-                                     :name (symbol-name (gensym "issr-"))
-                                     :directory "tmp")))
-                 (with-open-file
-                     (tmp-file tmp-file-name
-                               :direction :output
-                               :if-does-not-exist :create
-                               :if-exists :supersede
-                               :element-type '(unsigned-byte 8))
-                   (-> content
-                     base64:base64-string-to-usb8-array
-                     (write-sequence tmp-file)))
-                 (cons name
-                       (jojo:to-json
-                        (map 'list 'cons
-                             (list "file" "name" "content-type")
-                             (apply 'list (princ-to-string tmp-file-name)
-                                    (nthcdr 2 value)))
-                        :from :alist))))))
-       alist))
+           (cons name
+                 (if (and (listp value)
+                          (not (eq t (first value))))
+                     (map 'list handle-value value)
+                     (funcall handle-value value)))))
+         alist)))
 
-(defun write-args (args server-stream)
+(defun write-headers-body-args (args server-stream)
   (setf (yxorp:header :content-type) "application/x-www-form-urlencoded")
   (-> args
-    flatten-args
-    alist-write-files
     alist-query-string
     (flex:string-to-octets :external-format :utf8)
     (yxorp:write-body-and-headers server-stream)))
 
 (defun rr (client host port show-errors args)
-  (let ((request (get-client-request client)))
+  (declare (type portal:websocket client)
+           (type list args))
+  (let* ((request (get-client-request client))
+         (args (alist-write-files args (request-id request))))
     (setf (query-arguments request) args)
     (with-open-stream
         (server (socket-stream
                  (socket-connect
                   host port :element-type '(unsigned-byte 8))))
       ;; (yxorp::with-socket-handler-case server
-      (let ((yxorp:*headers* (headers request)))
-        (write-args (query-arguments request) server))
-        (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
-          (cond
-            ((<= 300 (yxorp:header :status) 399)
+      (let ((yxorp:*headers* (request-headers request)))
+        (write-headers-body-args (query-arguments request) server))
+      (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
+        (cond
+          ((<= 300 (yxorp:header :status) 399)
+           (pws:send
+            client
+            (-> :location
+              yxorp:header
+              i:redirect
+              list
+              (jojo:to-json :from :list)))
+           (return-from rr))
+          ((<= 400 (yxorp:header :status) 599)
+           (when show-errors
              (pws:send
               client
-              (-> :location
-                yxorp:header
-                i:redirect
-                list
-                (jojo:to-json :from :list)))
-             (return-from rr))
-            ((<= 400 (yxorp:header :status) 599)
-             (when show-errors
-               (pws:send
-                client
+              (-> server
+                (yxorp::read-body (lambda (body) body))
+                (flex:octets-to-string :external-format :utf8)
+                i:error list
+                (jojo:to-json :from :list))))
+           (return-from rr)))
+        (let ((new-page
                 (-> server
                   (yxorp::read-body (lambda (body) body))
                   (flex:octets-to-string :external-format :utf8)
-                  i:error list
-                  (jojo:to-json :from :list))))
-             (return-from rr)))
-          (let ((new-page
-                  (-> server
-                    (yxorp::read-body (lambda (body) body))
-                    (flex:octets-to-string :external-format :utf8)
-                    plump:parse
-                    plump-dom-dom)))
-            (insert-js-call new-page "")
-            ;; this adds ids to new-page
-            (let ((instructions (diff (request-previous-page request)
-                                      new-page))
-                  (new-cookies (extract-response-cookies yxorp:*headers*)))
-              (unless (= (length (cookies-out request))
-                         (length
-                          (-> new-cookies
-                            (append (cookies-out request))
-                            (remove-duplicates :test 'string=))))
-                (push (i:cookie) instructions))
-              (setf (request-previous-page request) new-page)
-              (setf (cookies-out request) new-cookies)
-              (when instructions
-                (pws:send client (jojo:to-json instructions :from :list)))))))));)
+                  plump:parse
+                  plump-dom-dom)))
+          (insert-js-call new-page "")
+          ;; this adds ids to new-page
+          (let ((instructions (diff (request-previous-page request)
+                                    new-page))
+                (cookies-out (cookies-out request))
+                (new-cookies (extract-response-cookies yxorp:*headers*)))
+            (unless (= (length cookies-out)
+                       (length
+                        (-> new-cookies
+                          (append cookies-out)
+                          (remove-duplicates :test 'string=))))
+              (push (i:cookie) instructions))
+            (setf (request-previous-page request) new-page)
+            (setf (cookies-in request) (response-cookies-request-cookies new-cookies))
+            (setf (cookies-out request) new-cookies)
+            (when instructions
+              (pws:send client (jojo:to-json instructions :from :list)))))))));)
