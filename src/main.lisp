@@ -83,6 +83,7 @@
         (sleep 1)
         (start-hook-listener host port (config-show-errors config) redis-host redis-port redis-pass)))))
                       (setq *stop-redis* (constantly nil))))))
+        (start-id-gc redis-host redis-port redis-pass)))))
 
 (defun stop ()
   (yxorp:stop)
@@ -94,4 +95,26 @@
   ;; give the websockets time to disconnect
   (stop-hook-listener)
   (sleep 1)
+  (stop-id-gc)
   (funcall *stop-redis*))
+
+(defun start-id-gc (redis-host redis-port redis-pass)
+  (bt:make-thread
+   (lambda ()
+     (loop
+       (let ((keys (alexandria:hash-table-keys *ids*)))
+         (loop for key in keys do
+           (unless (typep (get-id-client key) 'portal:websocket)
+             (sleep 2)
+             (unless (typep (get-id-client key) 'portal:websocket)
+               (remove-id-client key)
+               (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+                 (remove-client key))))))))
+   :name "issr-id-gc"))
+
+(defun stop-id-gc ()
+  (let ((gcs (remove "issr-id-gc"
+                     (bt:all-threads)
+                     :key 'bt:thread-name
+                     :test-not 'string=)))
+    (mapc 'bt:destroy-thread gcs)))
