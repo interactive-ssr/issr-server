@@ -1,8 +1,11 @@
 (in-package #:issr.server)
 
 (defvar *ws-server* nil)
+
 (defvar *ht-server* nil)
-(defvar *stop-redis* nil)
+
+(declaim (type function *stop-redis*))
+(defvar *stop-redis* (constantly nil))
 
 (defun server-uuid ()
   (let ((filename
@@ -20,16 +23,22 @@
           (let ((uuid (princ-to-string (uuid:make-v4-uuid))))
             (write-sequence uuid out))))))
 
-(defun start (&optional (config (merge-pathnames
-                                 "issr/config.lisp"
-                                 (or (uiop:getenv "XDG_CONFIG_HOME")
-                                    "~/.config/")))
+(defun start (&optional (config (let ((user-config (merge-pathnames
+                                                    "issr/config.lisp"
+                                                    (or (uiop:getenv "XDG_CONFIG_HOME")
+                                                        "~/.config/"))))
+                                  (if (uiop:file-exists-p user-config)
+                                      user-config
+                                      "default-config.lisp")))
               &aux (config
                     (cond ((and (typep config '(or string pathname))
                                 (uiop:file-exists-p config))
                            (read-config config))
                           ((config-p config) config)
                           (:else (config)))))
+  (if config
+      (format t "Using this config:~%~S~%" config)
+      (uiop:quit))
   (multiple-value-bind (redis-host redis-port)
       (destination-parts (-> config config-redis redis-config-destination))
     (let ((redis-pass (-> config config-redis redis-config-password)))
@@ -60,7 +69,7 @@
                 :port (config-http-port config)
                 :document-root "resources/")))
         (if (not (equal 6379 (-> config config-redis redis-config-destination)))
-            (setq *stop-redis* nil)
+            (setq *stop-redis* (constantly nil))
             (progn
               (uiop:run-program
                (format nil "redis-server --requirepass ~A &" redis-pass))
@@ -68,9 +77,9 @@
                     (lambda ()
                       (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
                         (red:shutdown))
-                      (setq *stop-redis* nil)))))
         (sleep 1)
         (start-hook-listener host port (config-show-errors config) redis-host redis-port redis-pass)))))
+                      (setq *stop-redis* (constantly nil))))))
 
 (defun stop ()
   (yxorp:stop)
@@ -82,5 +91,4 @@
   ;; give the websockets time to disconnect
   (stop-hook-listener)
   (sleep 1)
-  (when *stop-redis*
-    (funcall *stop-redis*)))
+  (funcall *stop-redis*))
