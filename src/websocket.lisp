@@ -25,6 +25,13 @@
             (pws:send socket (jojo:to-json (list (i:reconnect))))
             (pws:close socket))))))
 
+(defun remove-client (id)
+  (red:del (issr-keys id :cookies-in))
+  (red:del (issr-keys id :cookies-out))
+  (red:del (issr-keys id :headers))
+  (red:del (issr-keys id :query-arguments))
+  (remove-id-client id))
+
 (defun make-ws-close (redis-host redis-port redis-pass)
   (lambda (socket)
     (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
@@ -41,11 +48,7 @@
             (red:subscribe channel)
             (redis:expect :anything)
             (red:unsubscribe channel)))
-        (red:del (issr-keys id :cookies-in))
-        (red:del (issr-keys id :cookies-out))
-        (red:del (issr-keys id :headers))
-        (red:del (issr-keys id :query-arguments))
-        (remove-id-client id))
+        (remove-client id))
       (remove-client-request socket))))
 
 (defun ws-error (socket condition)
