@@ -73,11 +73,11 @@
                               condition)))
         (setq *package* package)))))
 
-(defmacro env-or (env else)
-  (let ((menv (gensym)))
-    `(let ((,menv ,env))
-       (if (str:blankp (uiop:getenv ,menv))
-           ,menv
-           ,else))))
 (defun read-config (file)
   (read-config-from-string (uiop:read-file-string file)))
+
+(defmacro env-or (env else &optional (binding 'env) (action 'env))
+  `(let ((,binding (uiop:getenv ,env)))
+     (if (not (str:blankp ,binding))
+         ,action
+         ,else)))
