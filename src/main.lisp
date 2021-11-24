@@ -72,7 +72,10 @@
             (setq *stop-redis* (constantly nil))
             (progn
               (uiop:run-program
-               (format nil "redis-server --requirepass ~A &" redis-pass))
+               (format nil "redis-server ~A --requirepass '~A' &"
+                       (merge-pathnames "redis.conf" (uiop:getcwd))
+                       redis-pass)
+               :force-shell t)
               (setq *stop-redis*
                     (lambda ()
                       (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
