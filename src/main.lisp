@@ -125,7 +125,8 @@
              (unless (typep (get-id-client key) 'portal:websocket)
                (remove-id-client key)
                (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
-                 (remove-client key))))))))
+                 (remove-client key)))))
+         (sleep 60))))
    :name "issr-id-gc"))
 
 (defun stop-id-gc ()
