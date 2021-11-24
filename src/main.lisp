@@ -85,6 +85,22 @@
         (start-hook-listener host port (config-show-errors config) redis-host redis-port redis-pass)
         (start-id-gc redis-host redis-port redis-pass)))))
 
+(defun main (&aux (args uiop:*command-line-arguments*))
+  (let ((config (first args)))
+    (handler-case
+        (bt:join-thread
+         (cond
+           ((and config
+                 (eq #\left_parenthesis (elt config 0)))
+            (start (read-config-from-string config)))
+           (config (start config))
+           (:else (start))))
+      (sb-sys:interactive-interrupt ()
+        (handler-case (stop)
+          (sb-sys:interactive-interrupt ()
+            (continue)))
+        (uiop:quit)))))
+
 (defun stop ()
   (yxorp:stop)
   (when (and (bt:threadp *ws-server*)
