@@ -58,20 +58,19 @@
    :type redis-config
    :read-only t))
 
-(defun read-config (file)
+(defun read-config-from-string (string)
   (flet ((packageize (string)
            (str:concat "(progn #.(in-package #:issr-config) "
                        string ")")))
     (let ((package *package*))
       (prog1 (handler-case
-                 (-> file
-                   uiop:read-file-string
-                   packageize
-                   read-from-string
-                   eval)
+                 (-> string
+                     packageize
+                     read-from-string
+                     eval)
                (error (condition)
-                 (format *error-output* "There is a problem with your config file:~%~A~%"
-                         condition)))
+                      (format *error-output* "There is a problem with your config file:~%~A~%"
+                              condition)))
         (setq *package* package)))))
 
 (defmacro env-or (env else)
@@ -80,3 +79,5 @@
        (if (str:blankp (uiop:getenv ,menv))
            ,menv
            ,else))))
+(defun read-config (file)
+  (read-config-from-string (uiop:read-file-string file)))
