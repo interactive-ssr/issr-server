@@ -79,10 +79,10 @@
               (setq *stop-redis*
                     (lambda ()
                       (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
-                        (red:shutdown))
-        (sleep 1)
-        (start-hook-listener host port (config-show-errors config) redis-host redis-port redis-pass)))))
+                        (red:shutdown)
+                        (sleep 1))
                       (setq *stop-redis* (constantly nil))))))
+        (start-hook-listener host port (config-show-errors config) redis-host redis-port redis-pass)
         (start-id-gc redis-host redis-port redis-pass)))))
 
 (defun stop ()
@@ -93,8 +93,8 @@
   (when (hunchentoot:started-p *ht-server*)
     (hunchentoot:stop *ht-server*))
   ;; give the websockets time to disconnect
-  (stop-hook-listener)
   (sleep 1)
+  (stop-hook-listener)
   (stop-id-gc)
   (funcall *stop-redis*))
 
