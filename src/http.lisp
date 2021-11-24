@@ -1,5 +1,7 @@
 (in-package #:issr.server)
 
+(defmethod hunchentoot:session-cookie-name ((acceptor easy-acceptor)) "")
+
 (defun set-hunchentoot-response-cookie (string)
   (let ((parts (->> string
                  (str:split "; ")
