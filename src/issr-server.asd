@@ -20,6 +20,7 @@
    #:str
    #:uuid
    #:yxorp)
+  :serial t
   :components
   ((:file "package")
    (:file "dom")
