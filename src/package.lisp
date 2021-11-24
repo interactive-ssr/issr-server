@@ -76,9 +76,31 @@
   (:import-from #:urlencode
                 #:urlencode)
   (:import-from #:uuid
-                #:uuid))
+                #:uuid)
+  (:export #:main
+           #:redis-config
+           #:config
+           #:env-or
+           #:config-port
+           #:config-show-errors
+           #:config-application-destination
+           #:config-ssl
+           #:config-redis
+           #:redis-config-destination
+           #:redis-config-password))
 
 (defpackage issr-config
   (:use #:cl)
   (:import-from #:yxorp
-                #:ssl-config))
+                #:ssl-config)
+  (:import-from #:issr.server
+                #:redis-config
+                #:config
+                #:env-or
+                #:config-port
+                #:config-show-errors
+                #:config-application-destination
+                #:config-ssl
+                #:config-redis
+                #:redis-config-destination
+                #:redis-config-password))
