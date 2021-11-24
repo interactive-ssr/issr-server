@@ -42,8 +42,8 @@
       (list (list* (node :attributes (alist (:id . old-id)))
                    rest-old)
             (list* (node :attributes (alist (:id . new-id))) _))
-      (and new-id (string/= old-id new-id)
-           (find new-id rest-old
+      (and new-id (not (equal old-id new-id))
+           (find new-id (the list rest-old)
                  :key 'node-id
                  :test 'string=)))
      (diff-siblings rest-old new-children
@@ -53,8 +53,8 @@
     ((guard
       (list (list* (node :attributes (alist (:id . old-id))) _)
             (list* new-node rest-new))
-      (and (string/= old-id (node-id new-node))
-           (find old-id rest-new
+      (and (not (equal old-id (node-id new-node)))
+           (find old-id (the list rest-new)
                  :key 'node-id
                  :test 'string=)))
      (diff-siblings old-children rest-new
@@ -77,6 +77,7 @@
        (list (i:delete (map 'list 'node-id to-remove)))))))
 
 (defun diff-strings (id old-text new-text)
+  (declare (type simple-string old-text new-text))
   (unless (string= old-text new-text)
     (list (i:mod id (list (list "textContent" new-text))))))
 
