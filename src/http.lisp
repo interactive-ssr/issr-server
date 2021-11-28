@@ -75,6 +75,11 @@
                        (when (str:containsp "text" (yxorp:header :content-type))
                          :iso-8859-1))))
             (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
-              (-> server
-                (yxorp::read-body 'process-response)
-                (flex:octets-to-string :external-format encoding)))))))))
+              (handler-bind
+                  ((flexi-streams:external-format-encoding-error
+                     (lambda (condition) (declare (ignore condition))
+                       (invoke-restart (find-restart 'use-value)
+                                       #\replacement_character))))
+                (-> server
+                  (yxorp::read-body 'process-response)
+                  (flex:octets-to-string :external-format encoding))))))))))
