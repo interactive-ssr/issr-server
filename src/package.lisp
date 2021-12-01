@@ -77,6 +77,9 @@
                 #:urlencode)
   (:import-from #:uuid
                 #:uuid)
+  (:import-from #:rutils
+                #:alist->ht
+                #:ht->alist)
   (:export #:main
            #:redis-config
            #:config

@@ -38,20 +38,21 @@
                 plump:parse
                 plump-dom-dom
                 ensure-ids))
-        (id (yxorp:header :issr-id yxorp:*request-headers*)))
+        (id (yxorp:header :issr-id yxorp:*request-headers*))
+        (request-headers (ht->alist yxorp:*request-headers*)))
     (insert-js-call page id)
-    (setf (yxorp:header :method yxorp:*request-headers*)
-          "POST"
-          (yxorp:header :content-type yxorp:*request-headers*)
-          "application/x-www-form-urlencoded")
     (set-id-client
      id
      (make-request
       :id (uuid:make-uuid-from-string id)
-      :headers yxorp:*request-headers*
+      :headers
+      (-<>> request-headers
+        (acons :method "POST")
+        (acons :content-type "application/x-www-form-urlencoded")
+        (remove-duplicates <> :key 'car :from-end t))
       :cookies-in
-      (append (extract-request-cookies yxorp:*request-headers*)
-              (some->> yxorp:*headers*
+      (append (extract-request-cookies request-headers)
+              (some->> (ht->alist yxorp:*headers*)
                 extract-response-cookies
                 response-cookies-request-cookies))
       :previous-page page))

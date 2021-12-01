@@ -6,18 +6,19 @@
   :license "AGPLv3"
   :version "1"
   :depends-on
-  (#:cl-base64
+  (#:alexandria
+   #:bordeaux-threads
+   #:cl-base64
    #:cl-redis
-   #:alexandria
-   #:trivia
+   #:do-urlencode
    #:hunchentoot
    #:jonathan
    #:plump
    #:portal
-   #:bordeaux-threads
-   #:trivial-garbage
-   #:do-urlencode
+   #:rutils
    #:str
+   #:trivia
+   #:trivial-garbage
    #:uuid
    #:yxorp)
   :serial t

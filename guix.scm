@@ -77,6 +77,7 @@
          ("jonathan" ,sbcl-jonathan)
          ("plump" ,sbcl-plump)
          ("portal" ,sbcl-portal)
+         ("rutils" ,sbcl-rutils)
          ("trivia" ,sbcl-trivia)
          ("uuid" ,sbcl-uuid)
          ("yxorp" ,sbcl-yxorp)))

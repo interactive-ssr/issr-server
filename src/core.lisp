@@ -21,7 +21,7 @@
   (let* ((str:*omit-nulls* t)
          (uri-parts
            (some->> headers
-             (yxorp:header :uri)
+             (assoc :uri) cdr
              (str:split "?")))
          (request
            (make-instance
@@ -296,11 +296,13 @@
          alist)))
 
 (defun write-headers-body-args (args server-stream)
-  (setf (yxorp:header :content-type) "application/x-www-form-urlencoded")
-  (-> args
-    alist-query-string
-    (flex:string-to-octets :external-format :utf8)
-    (yxorp:write-body-and-headers server-stream)))
+  (let ((arg-bytes
+          (-> args
+            alist-query-string
+            (flex:string-to-octets :external-format :utf8))))
+    (setf (yxorp:header :content-type) "application/x-www-form-urlencoded"
+          (yxorp:header :content-length) (length arg-bytes))
+    (yxorp:write-body-and-headers arg-bytes server-stream)))
 
 (defun rr (client host port show-errors args)
   (declare (type portal:websocket client)
@@ -313,9 +315,9 @@
                  (socket-connect
                   host port :element-type '(unsigned-byte 8))))
       ;; (yxorp::with-socket-handler-case server
-      (let ((yxorp:*headers* (request-headers request)))
+      (let ((yxorp:*headers* (alist->ht (request-headers request))))
         (write-headers-body-args (query-arguments request) server))
-      (let ((yxorp:*headers* (yxorp::parse-response-headers server)))
+      (let ((yxorp:*headers* (alist->ht (yxorp::parse-response-headers server))))
         (cond
           ((<= 300 (yxorp:header :status) 399)
            (pws:send
@@ -331,23 +333,22 @@
              (pws:send
               client
               (-> server
-                (yxorp::read-body (lambda (body) body))
+                (yxorp:read-body 'identity)
                 (flex:octets-to-string :external-format :utf8)
                 i:error list
                 (jojo:to-json :from :list))))
            (return-from rr)))
         (let ((new-page
                 (-> server
-                  (yxorp::read-body (lambda (body) body))
+                  (yxorp:read-body 'identity)
                   (flex:octets-to-string :external-format :utf8)
                   plump:parse
                   plump-dom-dom)))
-          (insert-js-call new-page "")
-          ;; this adds ids to new-page
+          (insert-js-call new-page (yxorp:header :issr-id))
           (let ((instructions (diff (request-previous-page request)
                                     new-page))
                 (cookies-out (cookies-out request))
-                (new-cookies (extract-response-cookies yxorp:*headers*)))
+                (new-cookies (extract-response-cookies (ht->alist yxorp:*headers*))))
             (unless (= (length cookies-out)
                        (length
                         (-> new-cookies

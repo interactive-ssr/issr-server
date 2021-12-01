@@ -38,7 +38,7 @@
       (let ((id (some->> socket
                   get-client-request
                   request-headers
-                  (yxorp:header :issr-id)))
+                  (assoc :issr-id) cdr))
             (channel (str:concat "issr-" (server-uuid))))
         (when (redis-channel-exists-p channel)
           (red:publish channel

@@ -58,10 +58,11 @@
                            (cons :cookie (stringify-cookies
                                           (hunchentoot:cookies-in*))))
                    (append (headers-in*))
-                   (remove-duplicates :key 'car :from-end t)))
+                   (remove-duplicates :key 'car :from-end t)
+                   alist->ht))
                (yxorp:*request-headers* yxorp:*headers*))
           (write-headers-body-args args server)
-          (let* ((yxorp:*headers* (yxorp::parse-response-headers server))
+          (let* ((yxorp:*headers* (alist->ht (yxorp::parse-response-headers server)))
                  (encoding
                    (or (some-<>> :content-type
                          yxorp:header
