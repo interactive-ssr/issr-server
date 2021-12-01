@@ -1,0 +1,67 @@
+#+title: ISSR Configuration
+
+A ~port~ is a number. A ~destination~ is either a port or a string in the format ~<hostname>:<port>~.
+
+All methods of configuration are mutually exclusive.
+
+For the default values, see [[https://github.com/interactive-ssr/client/blob/master/src/config.lisp#L38][config.lisp]].
+
+* Using Configuration File
+The configuration file is located at =~/$XDG_CONFIG_HOME/issr/config.lisp=; if =XDG_CONFIG_HOME= is unbound then =~/.config/issr/config.lisp=.
+
+The final expression of config.lisp must return a ~issr.server:config~. Here is an example.
+#+BEGIN_SRC lisp
+  ;; config.lisp
+  (config
+   :port 3000 ;; listen for connections on port 3000
+   :show-errors t ;; show errors in the browser
+   :application-destination 8080 ;; connect to http server on port 8080
+   ;; http-port and websocket-port will almost always be omitted because the are only used internally by issr
+   :http-port 10000 ;; connect to issr http server on port 10000
+   :websocket-port 10001 ;; connect to issr websocket server on port 10001
+   :ssl (ssl-config      ;; use ssl
+         :certificate "~/my-hostname.crt" ;; the paths work best as absolute paths
+         :key "~/my-hostname.key"
+         :password (key-password-from-vault)) ;; you would need to define this function to get password
+   :redis (redis-config
+           ;; If this value is 6379 (default), ISSR will start it's own Redis server; This is mainly just for ease of development.
+           :destination "my-redis-cloud:6379" ;; sharing a single redis between your distributed issr servers allows users on different servers to interact
+           :password (redis-password-from-vault))) ;; you would need to define this function to get password
+#+END_SRC
+* Using Environment Variables
+** =ISSR_PORT=
+The port issr listens on.
+
+** =ISSR_SHOW_ERRORS=
+When set to anything but "", show errors in the web browser.
+
+** =ISSR_APPLICATION=
+The destination to your HTTP server. It is a destination only for debugging purposes. For all practical purposes, it should be just a port. This means that issr and your HTTP server should running on the same computer.
+
+** =ISSR_SSL_CERT=
+Path to the SSL certificate file.
+
+** =ISSR_SSL_KEY=
+Path to the SSL key file.
+
+** =ISSR_SSL_PASSWORD=
+Password for the SSL key file.
+
+** =ISSR_SSL_REDIRECT_PORT=
+The port listen to redirect non-secure connections.
+
+** =ISSR_SSL_REDIRECT_TO=
+The port to send non-secure connections to.
+
+** =ISSR_REDIS_DESTINATION=
+The destination to the Redis server. ISSR should be able to share a Redis Server because it uses the =issr-= prefix for everything.
+If this value is =6379=, ISSR will start it's own Redis server; This is mainly just for ease of development.
+
+** =ISSR_REDIS_PASSWORD=
+The password to the Redis server.
+
+* Using Command Line
+What ever you would have in your configuration file, you can pass as the first argument to ~issr-server~ command (as a string of course). Just make sure it is in quotes and to escape any quotes you might have.
+#+BEGIN_SRC sh
+  $ issr-server '(config :port 3001)'
+#+END_SRC

@@ -1,36 +1,65 @@
-#+title: issr.js
-This is the readme for the client Javascript. Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/main.org][main readme]]
-for the ISSR project. *issr.js doesn't work alone*; it needs to be paired with a server side module such as [[https://github.com/interactive-ssr/hunchenissr][hunchenissr]].
+#+title: Interactive Server Side Rendering (ISSR)
+Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/main.org][main readme]] for more in-depth information.
 
 * Getting Started
 
-** 1 Download
-Download ~issr.js~ ~issr.min.js~ and serve it on your HTTP server.
+** 1 Install and Run
 
-** 2 Link Script
-Include ~issr.js~ in your web page:
-#+BEGIN_SRC html
-  <html>
-    <head>
+*** Docker
+#+BEGIN_SRC sh
+  $ docker pull charje/issr-server
+  $ docker run --rm \
+    # this is needed for file upload
+    - v /tmp:/tmp \
+    # this is needed for running hooks (including file upload)
+    -v ~/.local/share/issr/:~/.local/share/issr/ \
+    # optional configuration file
+    -v config.lisp:~/.config/issr/config.lisp \
+    # optional
+    -e <environment variable configuration> \
+    issr-server
+#+END_SRC
+The important thing is that your ~:application-server~ configuration slot can get through to the correct network.
+You can do this with network sharing, docker compose, or using a special docker hostname.
+
+**** Network Sharing
+
+**** Docker Compose
+#+BEGIN_SRC yml
+  services:
+    my-http-server:
       ...
-      <script src="/issr.js"></script>
+    issr-server:
+      image: charje/issr-server
+      ports:
+        - 3000:3000
+      environment:
+        ISSR_APPLICATION: 'my-http-server:8080'
 #+END_SRC
 
-** 3 Setup Connection
-Set up the connection to the server:
-#+BEGIN_SRC html
-  <html>
-    <head>
-      ...
-      <script src="/issr.js"></script>
-      <script noupdate="t">
-        connect(«id», «protocol», «port»)
-      </script>
-      ...
-#+END_SRC
-Where ~«id»~ and is the unique id provided by the server for the current HTTP connection, ~«protocol»~ is either "ws" (for development) or "wss", and ~«port»~ is the port your websocket server is listening on (also provided by the ISSR server module). The ~noupdate~ attribute makes sure that the id doesn't change and that ~connect~ isn't called more than once per page.
+**** Docker Hostname
+This is for when you don't want to deal with running your HTTP server in docker too.
 
-** 4 Re-Render
+*** Linux
+Download latest release.
+#+BEGIN_SRC sh
+  $ ./gnu/bin/issr-server <config> > logfile 2> logfile &
+#+END_SRC
+
+*** Guix
+#+BEGIN_SRC sh
+  $ guix install issr-server
+  $ issr-server <config> > logfile 2> logfile &
+#+END_SRC
+This will probably be a service one day that you can put in your =/etc/config.scm= and deploy.
+
+** 2 Configure
+To get started, you don't need any configuration; just run your development HTTP server on port =8080= and access it at http://localhost:3000.
+It is important to run your HTTP server without TLS. If you want encryption (https), Use the SSL configuration options.
+
+For more information about configuration, see [[https://github.com/interactive-ssr/client/blob/master/configuration.org][configuration document]].
+
+** 3 Re-Render
 Call Re-Render:
 #+BEGIN_SRC html
   <button action="action" value="add" onclick="rr(this)">
@@ -81,23 +110,23 @@ Clicking the picture will produce produce include ~smap=x,y~ in the query string
 
 ** Client Maps
 #+BEGIN_SRC html
-  <img src="picture.png" usemap="#cmap"
-       width="200" height="200"/>
-  <map name="cmap">
-    <area onclick="rr({action:'cmap',value:'top-left'})"
-          shape="rect" coords="0,0,100,100">
-    <area onclick="rr({action:'cmap',value:'top-right'})"
-          shape="rect" coords="100,0,200,100">
-    <area onclick="rr({action:'cmap',value:'bottom-left'})"
-          shape="rect" coords="0,100,100,200">
-    <area onclick="rr({action:'cmap',value:'bottom-right'})"
-          shape="rect" coords="100,100,200,200">
-  </map>
+    <img src="picture.png" usemap="#cmap"
+         width="200" height="200"/>
+    <map name="cmap">
+      <area action="cmap" value="top-left" onclick="rr(this)"
+            shape="rect" coords="0,0,100,100">
+      <area action="cmap" value="top-right" onclick="rr(this)"
+            shape="rect" coords="100,0,200,100">
+      <area action="cmap" value="bottom-left" onclick="rr(this)"
+            shape="rect" coords="0,100,100,200">
+      <area action="cmap" value="bottom-right" onclick="rr(this)"
+            shape="rect" coords="100,100,200,200">
+    </map>
 #+END_SRC
 Clicking the top left quadrant of the picture will include ~cmap=top-left~ in the query string. See [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/area][area-tag]] for more options to define differently shaped areas.
 
 * Reusable Components
-The trick to keeping state is to require reusable components to have the ~id~ attribute. This not only make it unique, but it gives us a string to use as a GET parameter or session variable. The GET parameter can remember any state required by the component. The reason this works is because it is not required for the web programmer to specify GET parameters. The person using a Component doesn't need to worry about the existence of this variable (only not to use it for something else).
+The trick to keeping state is to require reusable components to have the ~id~ attribute. This not only make it unique, but it gives us a string to use as a HTTP parameter or session variable. The HTTP parameter can remember any state required by the component. The reason this works is because it is not required for the web programmer to specify HTTP parameters. The person using a Component doesn't need to worry about the existence of this variable (only not to use it for something else).
 
 ** Tab Box
 [[https://github.com/interactive-ssr/client/blob/master/tab-box.png]]
@@ -122,7 +151,7 @@ The tab-box and tab tags will never make it to the client.
     </tab>
   </tab-box>
 #+END_SRC
-For this example will use the [[https://github.com/interactive-ssr/hunchenissr][Hunchenissr]] implementation of ISSR and the [[https://github.com/moderninterpreters/markup][markup]] library for HTML generation.
+For this example will use the Common Lisp with [[https://edicl.github.io/hunchentoot][Hunchentoot]] and [[https://github.com/moderninterpreters/markup][markup]] libraries for HTTP and HTML generation respectively.
 
 First, we make the tab tag. The only purpose of this is to not make the user type a colon and ensure that the ~title~ attribute is present because the ~title~ text will be used for the tab buttons.
 #+BEGIN_SRC lisp
@@ -136,7 +165,7 @@ Second, we make the tab-box tag (~id~ attribute required),
    (deftag tab-box (children &key (id (error "tab-box must have an id"))
                     title class style)
  #+END_SRC
- Get list of tab titles, and decide the active one based on the GET parameter.
+ Get list of tab titles, and decide the active one based on the HTTP parameter.
 #+BEGIN_SRC lisp
   (let* ((tabs (mapcar
                 ;; get the tag titles
@@ -149,7 +178,7 @@ Second, we make the tab-box tag (~id~ attribute required),
                  (lambda (child)
                    (typep child 'xml-tag))
                  children)))
-         (active (or (get-parameter id) (first tabs))))
+         (active (or (parameter id) (first tabs))))
 #+END_SRC
 Let ~id~ ~class~ and ~style~ attributes fall through to the encompassing ~div~ and put a bold ~title~ if it was provided.
 #+BEGIN_SRC html
@@ -161,7 +190,7 @@ Let ~id~ ~class~ and ~style~ attributes fall through to the encompassing ~div~ a
          <br/>
        </merge-tag>)
 #+END_SRC
-Put a ~nav~ tag to hold the tab buttons. The ~action~ attribute will become the GET parameter with the value of whatever tab is selected. The ~name~ attribute will "remember" which tab we are on when we are not clicking tabs. the ~onclick~ will send the ~value~ to the server through the ~action~ attribute (which is whatever id is id).
+Put a ~nav~ tag to hold the tab buttons. The ~action~ attribute will become the HTTP parameter with the value of whatever tab is selected. The ~name~ attribute will "remember" which tab we are on when we are not clicking tabs. the ~onclick~ will send the ~value~ to the server through the ~action~ attribute (which is whatever id is id).
 #+BEGIN_SRC html
   <nav>
     ,@(mapcar
