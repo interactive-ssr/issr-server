@@ -17,18 +17,17 @@ FileList.prototype.toString = () => Array.from(this, file => file? file.toString
  * attr
  * Return the ATTRIBUTE member, attribute, or undefined of OBJ
  */
-const
 attr = (obj, attribute) => obj?
     (obj[attribute] || obj[attribute] == "" ?
      obj[attribute]:
      (obj.getAttribute && obj.getAttribute(attribute))):
-    undefined,
+    undefined
 
 /**
  * elementById
  * like document.getElementById, but also consults textNodes
  */
-elementById = id => document.getElementById(id) || textNodes[id],
+elementById = id => document.getElementById(id) || textNodes[id]
 
 /**
  * update
@@ -107,7 +106,7 @@ update = instructions => {
             break;
         }
     }
-},
+}
 
 /**
  * connect
@@ -125,7 +124,7 @@ connect = id => {
         event => update(JSON.parse(event.data));
     socket.onopen =
         event => socket.send("id:" + id);
-},
+}
 
 
 getValue = async obj => {
@@ -150,7 +149,7 @@ getValue = async obj => {
         }
     }
     return value;
-},
+}
 
 /**
  * rr - re-render
@@ -210,7 +209,7 @@ rr = async (...objs) => {
         socket.send(params);
     }
     return true;
-},
+}
 
 drr = (id, delay = this.delay) => {
     let debounce = (func, delay) => {
@@ -227,7 +226,7 @@ drr = (id, delay = this.delay) => {
                 rr(...objs);
                 delete drrs[id];
             }, delay));
-},
+}
 
 reconnect = async () => {
     let response = await fetch("/-issr/reconnect", {
@@ -246,7 +245,7 @@ reconnect = async () => {
     newhtml.write(text);
     newhtml.close();
     trackTextNodes(document);
-},
+}
 
 keepChanged = (olddata, newdata) => {
     let updated = {},
@@ -258,7 +257,7 @@ keepChanged = (olddata, newdata) => {
         }
     }
     return updated;
-},
+}
 
 jsonFiles = data => {
     for (let key of Object.keys(data)) {
@@ -268,7 +267,7 @@ jsonFiles = data => {
             );
         }
     }
-},
+}
 
 elseTraverse = (node, condition, action) => {
     for(let child of node.childNodes) {
@@ -278,7 +277,7 @@ elseTraverse = (node, condition, action) => {
             elseTraverse(child, condition, action);
         }
     }
-},
+}
 
 /**
  * trackTextNodes
@@ -297,7 +296,7 @@ elseTraverse(
         textNode.id = child.id;
         textNodes[child.id] = textNode;
         child.parentNode.replaceChild(textNode, child);
-    }),
+    })
 
 /**
  * freeTextNodes
@@ -313,6 +312,6 @@ elseTraverse(
         && child.id,
     // then
     child => delete textNodes[child.id]
-);
+)
 
 document.addEventListener("DOMContentLoaded", () => { trackTextNodes(document) });
