@@ -189,9 +189,9 @@ rr = async (...objs) => {
     }
     // generate params based on new and previous data
     actions.forEach(obj => registeredActions.add(attr(obj, "action")));
+    registeredActions.forEach(action => data[action]? 0 : data[action] = "")
     jsonFiles(data);
     let changed = keepChanged(previousData, data);
-    registeredActions.forEach(action => changed[action]? false : changed[action] = "")
     for (let obj of objs) {     // always ensure the data of objs gets sent
         let action = attr(obj, "action"),
             name = attr(obj, "name");
