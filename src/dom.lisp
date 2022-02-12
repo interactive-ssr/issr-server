@@ -110,9 +110,16 @@
                     (list (apply 'str:concat (map 'list 'plump:text (plump:children node))))
                     (domize-children (plump:children node)))))))))
 
+(defvar *id-counter-request* nil)
+
 (defun add-id (attributes &optional id)
   (if (not (member :id attributes :key 'car))
-      (acons :id (or id (symbol-name (gensym "I"))) attributes)
+      (acons :id
+             (or id
+                 (if *id-counter-request*
+                     (format nil "I~A" (incf (request-element-id *id-counter-request*)))
+                     (symbol-name (gensym "I"))))
+             attributes)
       attributes))
 
 (defun ensure-ids (node)

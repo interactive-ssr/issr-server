@@ -24,6 +24,7 @@
   :serial t
   :components
   ((:file "package")
+   (:file "request")
    (:file "dom")
    (:file "instructions")
    (:file "diff")

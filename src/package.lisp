@@ -1,5 +1,37 @@
+(defpackage issr.server.request
+  (:use #:cl)
+  (:import-from #:alexandria
+                #:curry
+                #:compose
+                #:make-keyword)
+  (:import-from #:binding-arrows
+                #:->
+                #:->>
+                #:-<>>
+                #:some->>
+                #:some-<>>)
+  (:import-from #:uuid
+                #:uuid)
+  (:export
+   #:request
+   #:request-id
+   #:request-previous-page
+   #:cookies-out
+   #:request-element-id
+   #:make-request
+   #:issr-keys
+   #:headers
+   #:cookies-in
+   #:stringify-cookies
+   #:query-arguments
+   #:request-headers
+   #:request-uri
+   #:request-url))
+
 (defpackage issr.server.dom
   (:use #:cl)
+  (:import-from #:issr.server.request
+                #:request-element-id)
   (:import-from #:plump)
   (:import-from #:alexandria
                 #:curry
@@ -16,6 +48,7 @@
    #:node-attributes
    #:node-attribute
    #:node-children
+   #:*id-counter-request*
    #:add-id
    #:copy-id
    #:ensure-ids
@@ -39,7 +72,7 @@
    #:error))
 
 (defpackage issr.server
-  (:use #:cl #:issr.server.dom)
+  (:use #:cl #:issr.server.dom #:issr.server.request)
   (:local-nicknames
    (#:i #:issr.server.instructions))
   (:import-from #:alexandria

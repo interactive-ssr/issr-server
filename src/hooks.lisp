@@ -26,6 +26,7 @@
          (block continue
            (handler-case
                (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+                 (format *debug-io* "Connected to redis.~%")
                  (red:subscribe "issr-rr")
                  (loop
                    (let ((message (redis:expect :anything)))

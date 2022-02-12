@@ -119,15 +119,15 @@
   (bt:make-thread
    (lambda ()
      (loop
-       (let ((keys (alexandria:hash-table-keys *ids*)))
-         (loop for key in keys do
-           (unless (typep (get-id-client key) 'portal:websocket)
-             (sleep 2)
-             (unless (typep (get-id-client key) 'portal:websocket)
-               (remove-id-client key)
-               (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
-                 (remove-client key)))))
-         (sleep 60))))
+      (let ((keys (alexandria:hash-table-keys *ids*)))
+        (loop for key in keys do
+              (unless (typep (get-id-client key) 'portal:websocket)
+                (sleep 2)
+                (unless (typep (get-id-client key) 'portal:websocket)
+                  (remove-id-client key)
+                  (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+                                         (remove-client key)))))
+        (sleep 60))))
    :name "issr-id-gc"))
 
 (defun stop-id-gc ()

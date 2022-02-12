@@ -6,51 +6,6 @@
     (cons (str:concat "issr-" (princ-to-string main-key)))
     (str:join ":")))
 
-(defclass request ()
-  ((id :reader request-id
-       :type uuid
-       :initarg :id)
-   (previous-page :accessor request-previous-page
-                  :type plump:root
-                  :initarg :previous-page)
-   (cookies-out :accessor cookies-out
-                :type list
-                :initform (list))))
-
-(defun make-request (&key id headers previous-page cookies-in cookies-out query-arguments)
-  (let* ((str:*omit-nulls* t)
-         (uri-parts
-           (some->> headers
-             (assoc :uri) cdr
-             (str:split "?")))
-         (request
-           (make-instance
-            'request
-            :id id
-            :previous-page previous-page)))
-    (prog1 request
-      (when (or uri-parts query-arguments)
-        (setf (query-arguments request)
-              (some->> uri-parts
-                second
-                (str:split "&")
-                (map 'list (curry 'str:split "="))
-                (map 'list
-                     (lambda (pair)
-                       (cons (urlencode:urldecode (or (first pair) ""))
-                             (urlencode:urldecode (or (second pair) "")))))
-                (append query-arguments))))
-      (when cookies-in
-        (setf (cookies-in request) cookies-in))
-      (when cookies-out
-        (setf (cookies-out request) cookies-out))
-      (when headers
-        (setf (headers request)
-              (some-<>> headers
-                (remove :cookie <> :key 'car)
-                (remove :uri <> :key 'car)
-                (acons :uri (first uri-parts))))))))
-
 (defun get-redis-hash (id key)
   (let* ((hash (issr-keys id key))
          (keys (red:hkeys hash)))
@@ -345,10 +300,11 @@
                   plump:parse
                   plump-dom-dom)))
           (insert-js-call new-page (yxorp:header :issr-id))
-          (let ((instructions (diff (request-previous-page request)
-                                    new-page))
-                (cookies-out (cookies-out request))
-                (new-cookies (extract-response-cookies (ht->alist yxorp:*headers*))))
+          (let* ((*id-counter-request* request)
+                 (instructions (diff (request-previous-page request)
+                                     new-page))
+                 (cookies-out (cookies-out request))
+                 (new-cookies (extract-response-cookies (ht->alist yxorp:*headers*))))
             (unless (= (length cookies-out)
                        (length
                         (-> new-cookies

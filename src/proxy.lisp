@@ -34,28 +34,28 @@
   body)
 
 (defun process-response (body)
-  (let ((page (-> body
-                plump:parse
-                plump-dom-dom
-                ensure-ids))
-        (id (yxorp:header :issr-id yxorp:*request-headers*))
-        (request-headers (ht->alist yxorp:*request-headers*)))
+  (let* ((id (yxorp:header :issr-id yxorp:*request-headers*))
+         (request-headers (ht->alist yxorp:*request-headers*))
+         (*id-counter-request*
+           (make-request
+            :id (uuid:make-uuid-from-string id)
+            :headers
+            (-<>> request-headers
+              (acons :method "POST")
+              (acons :content-type "application/x-www-form-urlencoded")
+              (remove-duplicates <> :key 'car :from-end t))
+            :cookies-in
+            (append (extract-request-cookies request-headers)
+                    (some->> (ht->alist yxorp:*headers*)
+                      extract-response-cookies
+                      response-cookies-request-cookies))))
+         (page (-> body
+                 plump:parse
+                 plump-dom-dom
+                 ensure-ids)))
     (insert-js-call page id)
-    (set-id-client
-     id
-     (make-request
-      :id (uuid:make-uuid-from-string id)
-      :headers
-      (-<>> request-headers
-        (acons :method "POST")
-        (acons :content-type "application/x-www-form-urlencoded")
-        (remove-duplicates <> :key 'car :from-end t))
-      :cookies-in
-      (append (extract-request-cookies request-headers)
-              (some->> (ht->alist yxorp:*headers*)
-                extract-response-cookies
-                response-cookies-request-cookies))
-      :previous-page page))
+    (setf (request-previous-page *id-counter-request*) page)
+    (set-id-client id *id-counter-request*)
     (princ-to-string page)))
 
 (defun make-response-filter (redis-host redis-port redis-pass)
