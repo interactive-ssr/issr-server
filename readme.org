@@ -91,12 +91,20 @@ Pressing the submit button will produce a query string like so: ~action=submit&d
 
 * File Upload
 #+BEGIN_SRC html
-    <input type="file" name="file" />
-    <button action="action" value="upload" onclick="rr(this)">
+    <input type="file" name="your-file" />
+    <button action="upload" onclick="rr(this)">
       Upload
     </button>
 #+END_SRC
-File upload doesn't actually use a query string. The server side module will determine what it looks like on the server.
+On the server the ~your-file~ http parameter will be set to a json with the following schema
+#+BEGIN_SRC json
+  {
+    "file": string, // what the file is named on the server
+    "name": string, // what the file was named on the client
+    "content-type": string // the http content type of the file
+  }
+#+END_SRC
+This value can be customized and acted upon using the file-upload-hook provided by your language's ISSR module
 
 * Image Maps
 
