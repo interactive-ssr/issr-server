@@ -15,30 +15,40 @@ Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/mai
     -v ~/.local/share/issr/:~/.local/share/issr/ \
     # optional configuration file
     -v config.lisp:~/.config/issr/config.lisp \
-    # optional
+    # optional environment variable configuration
     -e <environment variable configuration> \
     issr-server
 #+END_SRC
-The important thing is that your ~:application-server~ configuration slot can get through to the correct network.
+The important thing is that your ~:application-destination~ configuration slot can get through to the correct network.
 You can do this with network sharing, docker compose, or using a special docker hostname.
 
 **** Network Sharing
+This one only works on linux. Use the special network ~host~.
+#+BEGIN_SRC
+docker run --network host charje/issr-server
+#+END_SRC
 
 **** Docker Compose
 #+BEGIN_SRC yml
+  networks:
+    shared:
+      name: shared
+
   services:
-    my-http-server:
-      ...
-    issr-server:
+    issr:
       image: charje/issr-server
+      environment:
+        ISSR_APPLICATION: my-http-server:8080
+      networks:
+        - shared
       ports:
         - 3000:3000
-      environment:
-        ISSR_APPLICATION: 'my-http-server:8080'
 #+END_SRC
 
+see https://github.com/interactive-ssr/tally-demo for a full example.
+
 **** Docker Hostname
-This is for when you don't want to deal with running your HTTP server in docker too.
+Only for Windows and Mac. Docker has special dns to access host network.
 
 *** Linux
 Download latest release.
