@@ -17,7 +17,7 @@
    (name "issr-server")
    (version "1";; (git-version "1" revision commit)
             )
-   (source (local-file "/home/charles/issr/issr-server"
+   (source (local-file (getcwd)
                        #:recursive? #t)
            ;; (origin
            ;;  (method git-fetch)
