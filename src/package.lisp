@@ -122,6 +122,7 @@
            #:config
            #:env-or
            #:config-port
+           #:config-show-config
            #:config-show-errors
            #:config-application-destination
            #:config-ssl
@@ -138,6 +139,7 @@
                 #:config
                 #:env-or
                 #:config-port
+                #:config-show-config
                 #:config-show-errors
                 #:config-application-destination
                 #:config-ssl

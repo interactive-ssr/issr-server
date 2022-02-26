@@ -12,6 +12,9 @@
   (port 3000
    :type port
    :read-only t)
+  (show-config t
+   :type boolean
+   :read-only t)
   (show-errors nil
    :type boolean
    :read-only t)

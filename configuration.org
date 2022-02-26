@@ -14,6 +14,7 @@ The final expression of config.lisp must return a ~issr.server:config~. Here is 
   ;; config.lisp
   (config
    :port 3000 ;; listen for connections on port 3000
+   :show-config t ;; print out the final configuration when issr-server starts. This could expose passwords.
    :show-errors t ;; show errors in the browser
    :application-destination 8080 ;; connect to http server on port 8080
    ;; http-port and websocket-port will almost always be omitted because the are only used internally by issr

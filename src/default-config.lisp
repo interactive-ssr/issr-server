@@ -3,6 +3,9 @@
    :port
    (env-or "ISSR_PORT" (config-port default) env
            (read-from-string env))
+   :show-config
+   (env-or "ISSR_SHOW_CONFIG" (config-show-config default) env
+           (if (str:blankp env) nil t))
    :show-errors
    (env-or "ISSR_SHOW_ERRORS" (config-show-errors default) env
            (if (str:blankp env) nil t))
