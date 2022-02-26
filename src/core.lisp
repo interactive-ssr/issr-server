@@ -269,7 +269,6 @@
         (server (socket-stream
                  (socket-connect
                   host port :element-type '(unsigned-byte 8))))
-      ;; (yxorp::with-socket-handler-case server
       (let ((yxorp:*headers* (alist->ht (request-headers request))))
         (write-headers-body-args (query-arguments request) server))
       (let ((yxorp:*headers* (alist->ht (yxorp::parse-response-headers server))))
@@ -315,4 +314,4 @@
             (setf (cookies-in request) (response-cookies-request-cookies new-cookies))
             (setf (cookies-out request) new-cookies)
             (when instructions
-              (pws:send client (jojo:to-json instructions :from :list)))))))));)
+              (pws:send client (jojo:to-json instructions :from :list)))))))))
