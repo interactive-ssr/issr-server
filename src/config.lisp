@@ -1,32 +1,5 @@
 (in-package #:issr.server)
 
-(deftype port ()
-  'integer)
-
-(deftype destination ()
-  '(or string port null))
-
-(defun valid-destination-p (destination)
-  (typecase destination
-    (null nil)
-    (port t)
-    (string
-     (handler-case
-         (-<> destination
-           (str:split ":" <> :omit-nulls t)
-           second
-           parse-integer)
-       (parse-error nil)))))
-
-(defun destination-parts (destination)
-  (typecase destination
-    (port
-     (values "localhost" destination))
-    (string
-     (let ((parts (str:split ":" destination :omit-nulls t)))
-       (values (first parts)
-               (parse-integer (second parts)))))))
-
 (defstruct (redis-config (:constructor redis-config))
   (destination 6379
    :type destination

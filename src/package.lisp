@@ -93,7 +93,11 @@
                 #:alist
                 #:match)
   (:import-from #:yxorp
-                #:ssl-config)
+                #:ssl-config
+                #:port
+                #:destination
+                #:valid-destination-p
+                #:destination-parts)
   (:import-from #:usocket
                 #:socket-stream
                 #:socket-connect)
