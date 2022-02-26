@@ -73,13 +73,17 @@ For more information about configuration, see [[https://github.com/interactive-s
 ** 3 Re-Render
 Call Re-Render:
 #+BEGIN_SRC html
-  <button action="action" value="add" onclick="rr(this)">
+  <input name="x" value="1"/>
+  <input name="y" value="2"/>
+  <button action="add" onclick="rr(this)">
     I am add button
   </button>
 #+END_SRC
-Now your server should have a parameter who's action is ~action~ and who's value is "add". All other named elements on the page will be query-string parameters too. ~rr~ takes any number of arguments. The name attribute of any all the named arguments will be unique in the query string. For example the following is equivalent to the previous example (using [[https://json.org][JSON]]): 
+Now your server should have a parameter who's action is ~action~ and who's value is "add". All other named elements on the page will be query-string parameters too. Clicking this button will send re-render the page equivalent to this query string: ~x=1&y=2&add=t~.
+
+~rr~ takes any number of arguments. The name attribute of any all the named arguments will be unique in the query string. For example the following is equivalent to the previous example (using [[https://json.org][JSON]]): 
 #+BEGIN_SRC html
-  <button onclick="rr({action='action',value='add'})">
+  <button onclick="rr({action:'add',value:'t'})">
       I am add button
   </button>
 #+END_SRC
