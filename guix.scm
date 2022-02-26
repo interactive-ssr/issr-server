@@ -33,6 +33,9 @@
     '(#:phases
       (modify-phases %standard-phases
         (add-after 'unpack 'chdir (lambda _ (chdir "src") #t))
+        (add-after 'unpack 'set-env
+          (lambda* (#:key outputs #:allow-other-keys)
+            (setenv "PREFIX" (assoc-ref outputs "out"))))
         (add-after 'chdir 'copy-resources
           (lambda* (#:key outputs #:allow-other-keys)
             (let* ((dir "resources/-issr/")
@@ -78,7 +81,10 @@
           sbcl-rutils
           sbcl-trivia
           sbcl-uuid
-          sbcl-yxorp))
+          (package
+           (inherit sbcl-yxorp)
+           (source (local-file "/home/charles/cl-yxorp"
+                               #:recursive? #t)))))
    (propagated-inputs (list redis))
    (home-page "https://github.com/interactive-ssr/issr-server")
    (synopsis "Interactive Server Side Rendering Server")

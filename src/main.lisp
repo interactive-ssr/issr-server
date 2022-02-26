@@ -1,5 +1,9 @@
 (in-package #:issr.server)
 
+(defvar *install-directory* (env-or "PREFIX" (uiop:getcwd) env
+                                (merge-pathnames "share/"
+                                                 (str:concat env "/"))))
+
 (defvar *ws-server* nil)
 
 (defvar *ht-server* nil)
@@ -29,16 +33,17 @@
                                                         "~/.config/"))))
                                   (if (uiop:file-exists-p user-config)
                                       user-config
-                                      "default-config.lisp")))
+                                      (merge-pathnames "default-config.lisp"
+                                                       *install-directory*))))
               &aux (config
                     (cond ((and (typep config '(or string pathname))
                                 (uiop:file-exists-p config))
                            (read-config config))
                           ((config-p config) config)
                           (:else (config)))))
-  (if config
-      (format t "Using this config:~%~S~%" config)
-      (uiop:quit))
+  (when (some-> config config-show-config)
+    (in-package #:issr.server)
+    (format t "Using this config:~%~S~%" config))
   (multiple-value-bind (redis-host redis-port)
       (destination-parts (-> config config-redis redis-config-destination))
     (let ((redis-pass (-> config config-redis redis-config-password)))
@@ -84,11 +89,12 @@
             (format *error-output* "Could not start server on port ~A because another program is using that port.~%"
                     (config-http-port config))
             (uiop:quit)))
+        (if (not (eql 6379 (-> config config-redis redis-config-destination)))
             (setq *stop-redis* (constantly nil))
             (progn
               (uiop:run-program
                (format nil "redis-server ~A --requirepass '~A' &"
-                       (merge-pathnames "redis.conf" (uiop:getcwd))
+                       (merge-pathnames "redis.conf" *install-directory*)
                        redis-pass)
                :force-shell t)
               (setq *stop-redis*
