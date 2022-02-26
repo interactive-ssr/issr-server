@@ -67,8 +67,11 @@
             (not (str:starts-with-p "/-issr/reconnect"
                                     (yxorp:header :uri yxorp:*request-headers*)))
             (and (ppcre:scan "rr\s*[(]" body)))
-       (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
-         (process-response body)))
+       (handler-case
+           (redis:with-connection (:host redis-host :port redis-port :auth redis-pass)
+             (process-response body))
+         (usocket:connection-refused-error (c) (declare (ignore c))
+           (format *error-output* "Could not make redis connection.~%"))))
       ;; use issr favicon
       ((and (string= "/favicon.ico" (yxorp:header :uri yxorp:*request-headers*))
             (= 404 (yxorp:header :status)))

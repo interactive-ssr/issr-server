@@ -42,13 +42,18 @@
   (multiple-value-bind (redis-host redis-port)
       (destination-parts (-> config config-redis redis-config-destination))
     (let ((redis-pass (-> config config-redis redis-config-password)))
-      (yxorp:start
-       (yxorp:config
-        :port (config-port config)
-        :ssl (config-ssl config)
-        :destinator (make-destinator config)
-        :request-filter 'process-request
-        :response-filter (make-response-filter redis-host redis-port redis-pass)))
+      (handler-case
+          (yxorp:start
+           (yxorp:config
+            :port (config-port config)
+            :ssl (config-ssl config)
+            :destinator (make-destinator config)
+            :request-filter 'process-request
+            :response-filter (make-response-filter redis-host redis-port redis-pass)))
+        (usocket:address-in-use-error ()
+          (format *error-output* "Could not start server on port ~A  because another program is using that port.~%"
+                  (config-port config))
+          (uiop:quit)))
       (multiple-value-bind (host port)
           (destination-parts (config-application-destination config))
         (make-/cookie redis-host redis-port redis-pass)
@@ -58,17 +63,27 @@
                                     redis-host redis-port redis-pass)
           :close (make-ws-close redis-host redis-port redis-pass)
           :error 'ws-error)
-        (setq *ws-server*
-              (pws:server
-               (config-websocket-port config)
-               :multi-thread))
-        (setq *ht-server*
-              (hunchentoot:start
-               (make-instance
-                'easy-acceptor
-                :port (config-http-port config)
-                :document-root "resources/")))
-        (if (not (equal 6379 (-> config config-redis redis-config-destination)))
+        (handler-case
+            (setq *ws-server*
+                  (pws:server
+                   (config-websocket-port config)
+                   :multi-thread))
+          (usocket:address-in-use-error ()
+            (format *error-output* "Could not start server on port ~A  because another program is using that port.~%"
+                    (config-websocket-port config))
+            (uiop:quit)))
+        (handler-case
+            (setq *ht-server*
+                  (hunchentoot:start
+                   (make-instance
+                    'easy-acceptor
+                    :port (config-http-port config)
+                    :document-root (merge-pathnames "resources/"
+                                                    *install-directory*))))
+          (usocket:address-in-use-error ()
+            (format *error-output* "Could not start server on port ~A because another program is using that port.~%"
+                    (config-http-port config))
+            (uiop:quit)))
             (setq *stop-redis* (constantly nil))
             (progn
               (uiop:run-program
