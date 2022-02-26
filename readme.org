@@ -22,18 +22,11 @@ Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/mai
 The important thing is that your ~:application-destination~ configuration slot can get through to the correct network.
 You can do this with network sharing, docker compose, or using a special docker hostname.
 
-**** Network Sharing
-This one only works on linux. Use the special network ~host~.
-#+BEGIN_SRC
-docker run --network host charje/issr-server
-#+END_SRC
-
 **** Docker Compose
 #+BEGIN_SRC yml
   networks:
     shared:
       name: shared
-
   services:
     issr:
       image: charje/issr-server
@@ -47,8 +40,16 @@ docker run --network host charje/issr-server
 
 see https://github.com/interactive-ssr/tally-demo for a full example.
 
+**** Network Sharing
+This one only works on linux. Use the special network ~host~.
+#+BEGIN_SRC
+docker run --network host charje/issr-server
+#+END_SRC
+
 **** Docker Hostname
 Only for Windows and Mac. Docker has special dns to access host network.
+
+Configure the ~:application-destination~ to be something like ~host.docker.internal:8080~.
 
 *** Linux
 Download latest release.
