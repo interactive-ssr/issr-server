@@ -6,12 +6,12 @@ if (wsurl == undefined) {
         textNodes = {},
         issrId,
         drrs = {},
-        delay = 800;
+        delay = 800
 }
 
-File.prototype.content = "";
-File.prototype.toString = () => this.content;
-FileList.prototype.toString = () => Array.from(this, file => file? file.toString() : "").join(",");
+File.prototype.content = ""
+File.prototype.toString = () => this.content
+FileList.prototype.toString = () => Array.from(this, file => file? file.toString() : "").join(",")
 
 /**
  * attr
@@ -45,44 +45,44 @@ update = instructions => {
     for (let instruction of instructions) {
         switch (instruction[0]) {
         case "mod":
-            let node = elementById(instruction[1]);
+            let node = elementById(instruction[1])
             if (node) {
                 for (let i = 2; i < instruction.length; ++i) {
                     if (instruction[i][0].toString().startsWith("on")) {
                         // set event value
-                        node[instruction[i][0]] = Function("event", instruction[i][1]);
+                        node[instruction[i][0]] = Function("event", instruction[i][1])
                     } else {
                         // set value
-                        node[instruction[i][0]] = instruction[i][1];
+                        node[instruction[i][0]] = instruction[i][1]
                     }
                     // set attribute value
                     if (!instruction[i][0].includes("textContent")
                         && !instruction[i][0].includes("HTML")) {
                         if ("" == instruction[i][1]) {
-                            node.removeAttribute([instruction[i][0]]);
+                            node.removeAttribute([instruction[i][0]])
                         } else {
-                            node.setAttribute(instruction[i][0], instruction[i][1]);
+                            node.setAttribute(instruction[i][0], instruction[i][1])
                         }
                     }
                 }
             }
-            break;
+            break
         case "delete":
             for (let i = 1; i < instruction.length; ++i) {
-                let node = elementById(instruction[i]);
-                freeTextNodes(node);
-                node.remove();
+                let node = elementById(instruction[i])
+                freeTextNodes(node)
+                node.remove()
             }
-            break;
+            break
         case "insert":
-            let parent = elementById(instruction[1]);
+            let parent = elementById(instruction[1])
             if (parent) {
-                let node = document.createElement('nil');
-                parent[instruction[2]](node);
-                node.outerHTML = instruction[3];
-                trackTextNodes(parent);
+                let node = document.createElement('nil')
+                parent[instruction[2]](node)
+                node.outerHTML = instruction[3]
+                trackTextNodes(parent)
             }
-            break;
+            break
         case "cookie":
             fetch("-issr/cookie", {
                 method:"POST",
@@ -90,20 +90,24 @@ update = instructions => {
                     "content-type": "application/x-www-form-urlencoded"
                 },
                 body: "id=" + issrId
-            });
-            break;
+            })
+            break
         case "redirect":
-            document.location = instruction[1];
-            break;
+            document.location = instruction[1]
+            break
         case "reconnect":
-            reconnect();
-            break;
+            reconnect()
+          break
+        case "script":
+          if (allowScript)
+            eval(instruction[1])
+          break
         case "error":
             let newhtml = open("about:blank")
-                .document.open("text/html","replace");
-            newhtml.write(instruction[1]);
+                .document.open("text/html","replace")
+            newhtml.write(instruction[1])
             newhtml.close()
-            break;
+            break
         }
     }
 }
@@ -114,118 +118,112 @@ update = instructions => {
  * ID: the unique server generated id for identifying with the websocket.
  */
 connect = id => {
-    issrId = id;
+    issrId = id
     if (!window.WebSocket) {
-        alert("Your browser doesn't support websockets. This website might not work properly.");
-        return;
+        alert("Your browser doesn't support websockets. This website might not work properly.")
+        return
     }
-    socket = new WebSocket(wsurl);
+    socket = new WebSocket(wsurl)
     socket.onmessage =
-        event => update(JSON.parse(event.data));
+        event => update(JSON.parse(event.data))
     socket.onopen =
-        event => socket.send("id:" + id);
+        event => socket.send("id:" + id)
 }
 
 
 getValue = async obj => {
-    let value = attr(obj, "value");
+    let value = attr(obj, "value")
     if (obj.type === "radio" ||
         obj.type === "checkbox") {
         if (!obj.checked) {
-            value = "";
+            value = ""
         }
     } else if (obj.type === "file") {
-        value = obj.files;
+        value = obj.files
         if (value.length > 0) {
             for (let file of value) {
                 if (!file.content) {
-                    let arrayBuffer = await new Response(file).arrayBuffer();
+                    let arrayBuffer = await new Response(file).arrayBuffer()
                     file.content = btoa(
                         new Uint8Array(arrayBuffer).reduce((data, byte) =>
                             data + String.fromCharCode(byte), "")
-                    );
+                    )
                 }
             }
         }
     }
-    return value;
+    return value
+}
+
+computeArgs = async () => {
+  let elements = document.querySelectorAll("[name]"),
+      data = {}
+  for (let element of elements) {
+    let name = attr(element, "name")
+    if (element.disable) {
+      continue
+    }
+    let value = await getValue(element)
+    if (typeof data[name] === "undefined") {
+      // set value
+      data[name] = value
+    } else if (data[name] && data[name].constructor === Array) {
+      // append to array
+      data[name].push(value)
+    } else {
+      // become array
+      data[name] = [data[name], value]
+    }
+    if (element.type === "radio"
+        && data[name].constructor === Array) {
+      data[name] = data[name]
+        .filter((value) => value)[0]
+        || ""
+    }
+  }
+  return data
 }
 
 /**
  * rr - re-render
  * Generate the url parameter list and send it over the server throught the socket.
  * Any element that has a "name" attribute will be put in the parameter list.
- * OBJS (optional) (variadic): Make OBJ.action be the only one of its kind in the parameter list.
+ * OBJS (optional): Make OBJ.action be the only one of its kind in the parameter list.
  *
  * Usually, you would want to call rr as rr() or rr(this) from something like onclick="rr(this)", but it can be called as rr({action:"custom-name",value:"custom-value"}...) for custom results.
  */
-rr = async (...objs) => {
-    let elements = document.querySelectorAll("[name]"),
-        data = {},
-        actions = document.querySelectorAll("[action]");
-    for (let element of elements) {
-        let name = attr(element, "name");
-        if (element.disable) {
-            continue;
-        }
-        let value = await getValue(element);
-        if (typeof data[name] === "undefined") {
-            // set value
-            data[name] = value;
-        } else if (data[name] && data[name].constructor === Array) {
-            // append to array
-            data[name].push(value);
-        } else {
-            // become array
-            data[name] = [data[name], value];
-        }
-        if (element.type === "radio"
-            && data[name].constructor === Array) {
-            data[name] = data[name]
-                .filter((value) => value)[0]
-                || "";
-        }
-    }
-    // generate params based on new and previous data
-    actions.forEach(obj => registeredActions.add(attr(obj, "action")));
-    registeredActions.forEach(action => data[action]? 0 : data[action] = "")
-    jsonFiles(data);
-    let changed = keepChanged(previousData, data);
-    for (let obj of objs) {     // always ensure the data of objs gets sent
-        let action = attr(obj, "action"),
-            name = attr(obj, "name");
-        if (action) {
-            changed[action] = data[action] = await getValue(obj) || "T";
-        }
-        if (name) {
-            changed[name] = data[name] = await getValue(obj);
-        }
-    }
-    let params = JSON.stringify(changed);
-    previousData = data;
+rr = async (actionElement) => {
+  // generate params based on new and previous data
+    let data = await computeArgs(),
+        changed = keepChanged(previousData, data),
+        action = {}
+    if (actionElement)
+        action[attr(actionElement, "action")] = await getValue(actionElement) || "T"
+    jsonFiles(data)
+    previousData = data
     if (!socket || socket.readyState != 1) {
-        reconnect();
+        reconnect()
     } else {
-        socket.send(params);
+        socket.send(JSON.stringify([action, changed]))
     }
-    return true;
+    return true
 }
 
 drr = (id, delay = this.delay) => {
     let debounce = (func, delay) => {
-        let timeout;
+        let timeout
         return (...args) => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func(args), delay);
-        };
-    }, debouncer = drrs[id];
+            clearTimeout(timeout)
+            timeout = setTimeout(() => func(args), delay)
+        }
+    }, debouncer = drrs[id]
     // do not add newline after return
     return (debouncer?
             debouncer:
             drrs[id] = debounce(objs => {
-                rr(...objs);
-                delete drrs[id];
-            }, delay));
+                rr(...objs)
+                delete drrs[id]
+            }, delay))
 }
 
 reconnect = async () => {
@@ -238,25 +236,25 @@ reconnect = async () => {
         },
         body: JSON.stringify(previousData)
     }), text = await response.text(),
-        newhtml = document.open("text/html", "replace");
+        newhtml = document.open("text/html", "replace")
     if (300 <= response.status && response.status <= 399) {
-        location.href = response.headers.get("Location");
+        location.href = response.headers.get("Location")
     }
-    newhtml.write(text);
-    newhtml.close();
-    trackTextNodes(document);
+    newhtml.write(text)
+    newhtml.close()
+    trackTextNodes(document)
 }
 
 keepChanged = (olddata, newdata) => {
     let updated = {},
-        key = (data, name)=> data[name]? data[name].toString() : "";
+        key = (data, name)=> data[name]? data[name].toString() : ""
     for (let name of Object.keys(newdata)) {
         if (olddata[name] == undefined
             || key(olddata, name) !== key(newdata, name)) {
-            updated[name] = newdata[name];
+            updated[name] = newdata[name]
         }
     }
-    return updated;
+    return updated
 }
 
 jsonFiles = data => {
@@ -264,7 +262,7 @@ jsonFiles = data => {
         if (data[key]? data[key].constructor === FileList : null) {
             data[key] = Array.from(data[key], file =>
                 [true, file.content, file.name, file.type]
-            );
+            )
         }
     }
 }
@@ -272,9 +270,9 @@ jsonFiles = data => {
 elseTraverse = (node, condition, action) => {
     for(let child of node.childNodes) {
         if (condition(child)) {
-            action(child);
+            action(child)
         } else if (child.childNodes) {
-            elseTraverse(child, condition, action);
+            elseTraverse(child, condition, action)
         }
     }
 }
@@ -292,10 +290,10 @@ elseTraverse(
         && child.id,
     // then
     child => {
-        let textNode = child.childNodes[0];
-        textNode.id = child.id;
-        textNodes[child.id] = textNode;
-        child.parentNode.replaceChild(textNode, child);
+        let textNode = child.childNodes[0]
+        textNode.id = child.id
+        textNodes[child.id] = textNode
+        child.parentNode.replaceChild(textNode, child)
     })
 
 /**
@@ -314,4 +312,4 @@ elseTraverse(
     child => delete textNodes[child.id]
 )
 
-document.addEventListener("DOMContentLoaded", () => { trackTextNodes(document) });
+document.addEventListener("DOMContentLoaded", () => { trackTextNodes(document) })

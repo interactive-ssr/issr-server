@@ -262,56 +262,59 @@
 (defun rr (client host port show-errors args)
   (declare (type portal:websocket client)
            (type list args))
-  (let* ((request (get-client-request client))
-         (args (alist-write-files args (request-id request))))
-    (setf (query-arguments request) args)
-    (with-open-stream
-        (server (socket-stream
-                 (socket-connect
-                  host port :element-type '(unsigned-byte 8))))
-      (let ((yxorp:*headers* (alist->ht (request-headers request))))
-        (write-headers-body-args (query-arguments request) server))
-      (let ((yxorp:*headers* (alist->ht (yxorp::parse-response-headers server))))
-        (cond
-          ((<= 300 (yxorp:header :status) 399)
-           (pws:send
-            client
-            (-> :location
-              yxorp:header
-              i:redirect
-              list
-              (jojo:to-json :from :list)))
-           (return-from rr))
-          ((<= 400 (yxorp:header :status) 599)
-           (when show-errors
-             (pws:send
-              client
-              (-> server
-                (yxorp:read-body 'identity)
-                (flex:octets-to-string :external-format :utf8)
-                i:error list
-                (jojo:to-json :from :list))))
-           (return-from rr)))
-        (let ((new-page
-                (-> server
-                  (yxorp:read-body 'identity)
-                  (flex:octets-to-string :external-format :utf8)
-                  plump:parse
-                  plump-dom-dom)))
-          (insert-js-call new-page (yxorp:header :issr-id))
-          (let* ((*id-counter-request* request)
-                 (instructions (diff (request-previous-page request)
-                                     new-page))
-                 (cookies-out (cookies-out request))
-                 (new-cookies (extract-response-cookies (ht->alist yxorp:*headers*))))
-            (unless (= (length cookies-out)
-                       (length
-                        (-> new-cookies
-                          (append cookies-out)
-                          (remove-duplicates :test 'string=))))
-              (push (i:cookie) instructions))
-            (setf (request-previous-page request) new-page)
-            (setf (cookies-in request) (response-cookies-request-cookies new-cookies))
-            (setf (cookies-out request) new-cookies)
-            (when instructions
-              (pws:send client (jojo:to-json instructions :from :list)))))))))
+  (match args
+    ((list action args)
+     (let* ((request (get-client-request client))
+            (args (alist-write-files args (request-id request))))
+       (setf (query-arguments request) args)
+       (let ((args (append action (query-arguments request))))
+         (with-open-stream
+             (server (socket-stream
+                      (socket-connect
+                       host port :element-type '(unsigned-byte 8))))
+           (let ((yxorp:*headers* (alist->ht (request-headers request))))
+             (write-headers-body-args args server))
+           (let ((yxorp:*headers* (alist->ht (yxorp::parse-response-headers server))))
+             (cond
+               ((<= 300 (yxorp:header :status) 399)
+                (pws:send
+                 client
+                 (-> :location
+                   yxorp:header
+                   i:redirect
+                   list
+                   (jojo:to-json :from :list)))
+                (return-from rr))
+               ((<= 400 (yxorp:header :status) 599)
+                (when show-errors
+                  (pws:send
+                   client
+                   (-> server
+                     (yxorp:read-body 'identity)
+                     (flex:octets-to-string :external-format :utf8)
+                     i:error list
+                     (jojo:to-json :from :list))))
+                (return-from rr)))
+             (let ((new-page
+                     (-> server
+                       (yxorp:read-body 'identity)
+                       (flex:octets-to-string :external-format :utf8)
+                       plump:parse
+                       plump-dom-dom)))
+               (insert-js-call new-page (yxorp:header :issr-id))
+               (let* ((*id-counter-request* request)
+                      (instructions (diff (request-previous-page request)
+                                          new-page))
+                      (cookies-out (cookies-out request))
+                      (new-cookies (extract-response-cookies (ht->alist yxorp:*headers*))))
+                 (unless (= (length cookies-out)
+                            (length
+                             (-> new-cookies
+                               (append cookies-out)
+                               (remove-duplicates :test 'string=))))
+                   (push (i:cookie) instructions))
+                 (setf (request-previous-page request) new-page)
+                 (setf (cookies-in request) (response-cookies-request-cookies new-cookies))
+                 (setf (cookies-out request) new-cookies)
+                 (when instructions
+                   (pws:send client (jojo:to-json instructions :from :list))))))))))))
