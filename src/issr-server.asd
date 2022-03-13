@@ -4,7 +4,7 @@
   :description "Make Interactive-Server-Side-Rendered web pages with declaritive and recursive programming."
   :author "Charles Jackson <charles.b.jackson@protonmail.com>"
   :license "AGPLv3"
-  :version "0.3"
+  :version "0.4"
   :depends-on
   (#:alexandria
    #:bordeaux-threads
