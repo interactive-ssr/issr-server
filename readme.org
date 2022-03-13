@@ -1,5 +1,5 @@
 #+title: Interactive Server Side Rendering (ISSR)
-Make sure to see the [[https://github.com/interactive-ssr/client/blob/master/main.org][main readme]] for more in-depth information.
+Make sure to see the [[https://github.com/interactive-ssr/issr-server/blob/master/main.org][main readme]] for more in-depth information.
 
 * Getting Started
 
@@ -27,6 +27,12 @@ You can do this with network sharing, docker compose, or using a special docker 
   networks:
     shared:
       name: shared
+  my-http-server:
+    build: .
+    networks:
+      - shared
+    ports:
+      - 8080:8080
   services:
     issr:
       image: charje/issr-server
@@ -54,13 +60,13 @@ Configure the ~:application-destination~ to be something like ~host.docker.inter
 *** Linux
 Download latest release.
 #+BEGIN_SRC sh
-  $ ./gnu/bin/issr-server <config> > logfile 2> logfile &
+  $ ./gnu/bin/issr-server <config> &> logfile &
 #+END_SRC
 
 *** Guix
 #+BEGIN_SRC sh
   $ guix install issr-server
-  $ issr-server <config> > logfile 2> logfile &
+  $ issr-server <config> &> logfile &
 #+END_SRC
 This will probably be a service one day that you can put in your =/etc/config.scm= and deploy.
 
@@ -68,41 +74,75 @@ This will probably be a service one day that you can put in your =/etc/config.sc
 To get started, you don't need any configuration; just run your development HTTP server on port =8080= and access it at http://localhost:3000.
 It is important to run your HTTP server without TLS. If you want encryption (https), Use the SSL configuration options.
 
-For more information about configuration, see [[https://github.com/interactive-ssr/client/blob/master/configuration.org][configuration document]].
+For more information about configuration, see [[https://github.com/interactive-ssr/issr-server/blob/master/configuration.org][configuration document]].
 
 ** 3 Re-Render
 Call Re-Render:
 #+BEGIN_SRC html
-  <input name="x" value="1"/>
-  <input name="y" value="2"/>
+  <input name="x" value="1" type="number"/>
+  <input name="y" value="2" type="number"/>
   <button action="add" onclick="rr(this)">
     I am add button
   </button>
 #+END_SRC
-Now your server should have a parameter who's action is ~action~ and who's value is "add". All other named elements on the page will be query-string parameters too. Clicking this button will send re-render the page equivalent to this query string: ~x=1&y=2&add=t~.
+Now your server should have an argument who's name is "add". All other named elements on the page will be query-string arguments too. Clicking this button will send re-render the page equivalent to this query string: ~x=1&y=2&add=t~.
 
-~rr~ takes any number of arguments. The name attribute of any all the named arguments will be unique in the query string. For example the following is equivalent to the previous example (using [[https://json.org][JSON]]): 
+The name attribute of any all the named arguments will be unique in the query string. For example the following is equivalent to the previous example (using [[https://json.org][JSON]]): 
 #+BEGIN_SRC html
   <button onclick="rr({action:'add',value:'t'})">
       I am add button
   </button>
 #+END_SRC
-~rr~ can take any number of arguments like this to give you full control.
-It can also take no arguments, in which case it makes no effort to ensure uniqueness.
+~rr~ can also take no arguments.
 
-The difference between attribute ~name~ and attribute ~action~ is that ~action~ will only be included in the query string if is an argument to ~rr~. Named elements will appear regardless.
+The difference between attribute ~name~ and attribute ~action~ is that ~action~ will only be included in the query string if is an argument to ~rr~. Named elements will appear regardless. Only one ~action~ can be sent at a time. Actions and Names share the same namespace so you should not use the string to identify an action and a name.
 
+* Data Binding
+
+** Variable to Element
+This is for when you want to display data to your user. Just put the variable where you want it.
+#+BEGIN_SRC
+<p>{my-variable}</p>
+#+END_SRC
+
+** Element to Variable
+This is for when you want to get data from your user. Just name it!
+#+BEGIN_SRC html
+<input name="my-variable"/>
+#+END_SRC
+In your handler you will have an argument called ~my-variable~. Depending on how soon you want this data, you can add an ~rr~.
+#+BEGIN_SRC html
+  <input
+    name="my-variable"
+    <!-- every time the user types -->
+    oninput="rr()"
+    <!-- when the user focuses on another element of the page -->
+    onblur="rr()"
+    <!-- 800 milliseconds after the user is done typing -->
+    oninput="drr(this.id)()"
+    <!-- 300 milliseconds after the user is done typing -->
+    oninput="drr(this.id, 300)()"/> 
+#+END_SRC
+
+** Two Way Binding
+This is when you want to get input from your user, but you want to control it is some way. For the most part, you just do the previous 2 strategies together. Sometimes, this does not quite work. To remedy this, include the ~update~ attribute when the processed data is different than the raw data.
+#+BEGIN_SRC html
+  <input name="data" value={data} oninput="rr()"
+         update={if (rawdata != data) "t"
+                 else ""}/>
+#+END_SRC
+See [[https://github.com/interactive-ssr/issr-server/blob/master/#input-control][Input Control]] for a much more in-depth example
 * Radio Buttons
 #+BEGIN_SRC html
     <input type="radio" name="direction" value="north" selected="true"/><label for="north">North</label><br />
     <input type="radio" name="direction" value="east" /><label for="east">East</label><br />
     <input type="radio" name="direction" value="south" /><label for="south">South</label><br />
     <input type="radio" name="direction" value="west" /><label for="west">West</label><br />
-    <button action="action" value="submit" onclick="rr(this)">
+    <button action="submit" onclick="rr(this)">
       Submit
     </button>
 #+END_SRC
-Pressing the submit button will produce a query string like so: ~action=submit&direction=north~. If no radio button is selected, the name for the radio button will not appear in the query string at all.
+Pressing the submit button will produce a query string like so: ~submit=t&direction=north~. If no radio button is selected, the name for the radio button will not appear in the query string at all.
 
 * File Upload
 #+BEGIN_SRC html
@@ -119,7 +159,7 @@ On the server the ~your-file~ http parameter will be set to a json with the foll
     "content-type": string // the http content type of the file
   }
 #+END_SRC
-This value can be customized and acted upon using the file-upload-hook provided by your language's ISSR module
+This value can be customized and acted upon using the file-upload-hook provided by your language's ISSR module.
 
 * Image Maps
 
@@ -152,7 +192,7 @@ Clicking the top left quadrant of the picture will include ~cmap=top-left~ in th
 The trick to keeping state is to require reusable components to have the ~id~ attribute. This not only make it unique, but it gives us a string to use as a HTTP parameter or session variable. The HTTP parameter can remember any state required by the component. The reason this works is because it is not required for the web programmer to specify HTTP parameters. The person using a Component doesn't need to worry about the existence of this variable (only not to use it for something else).
 
 ** Tab Box
-[[https://github.com/interactive-ssr/client/blob/master/tab-box.png]]
+[[https://github.com/interactive-ssr/issr-server/blob/master/tab-box.png]]
 
 The tab-box and tab tags will never make it to the client.
 #+BEGIN_SRC html
@@ -298,7 +338,7 @@ Lastly, add some CSS to hide the tab content that is not selected. Also lots of 
 The way to do control what users can input into text boxes is to use the ~oninput~ event. The only issue with this is that if you are disabling some characters to be input, the final result will be the same as the original (empty) input. The solution is to use the ~update~ attribute which, if present, will force all attributes to be updated by the server.
 
 ** Phone Number
-[[https://github.com/interactive-ssr/client/blob/master/phone-number.png]]
+[[https://github.com/interactive-ssr/issr-server/blob/master/phone-number.png]]
 
 We don't want the user to be able to enter anything but numbers, and we will put the hyphens in for them.
 

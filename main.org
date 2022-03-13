@@ -1,6 +1,6 @@
 #+title: ISSR
 * Overview
-Until someone can think of a better name, ISSR stands for Interactive Server Side Rendering. What makes ISSR unique is its lack of any kind of client-side programming. [[https://github.com/interactive-ssr/js/blob/master/main.org#also-see][Other Server based frameworks]] allow you write what would normally be written in Javascript onto the server. ISSR goes a step further into the land of [[https://dev.to/brewsterbhg/what-the-heck-is-declarative-programming-anyways-2bj2][declarative programming]] by moving any interactive changes into the realm of [[HTTPS://en.wikipedia.org/wiki/HTML][HTML]] /generation/ (rather than [[https://en.wikipedia.org/wiki/Document_Object_Model][DOM]] manipulation). The web developer only needs to know HTML and the server-side programming language (and [[https://en.wikipedia.org/wiki/CSS][CSS]] if you want styles); No knowledge about Javascript or DOM is necessary.
+Until someone can think of a better name, ISSR stands for Interactive Server Side Rendering. What makes ISSR unique is its lack of any kind of client-side programming. [[https://github.com/interactive-ssr/js/blob/master/main.org#also-see][Other Server based frameworks]] allow you write what would normally be written in Javascript onto the server. ISSR goes a step further into the land of [[https://dev.to/brewsterbhg/what-the-heck-is-declarative-programming-anyways-2bj2][declarative programming]] by moving any interactive changes into the realm of [[HTTPS://en.wikipedia.org/wiki/HTML][HTML]] /generation/ (rather than [[https://en.wikipedia.org/wiki/Document_Object_Model][DOM]] manipulation). ISSR is also language and HTTP server agnostic. The web developer only needs to know HTML and the server-side programming language (and [[https://en.wikipedia.org/wiki/CSS][CSS]] if you want styles); No knowledge about Javascript or DOM is necessary.
 
 Summary for the web developer:
 - Zero to minimal Javascript
@@ -28,10 +28,10 @@ The query string is generated the same way the [[https://www.w3schools.com/tags/
   <!-- With ISSR -->
   <input name="name1" value="value1" />
   <input name="name2" value="value2" />
-  <button onclick="rr(this)" action="action" value="delete">delete</button>
-  <button onclick="rr(this)" action="action" value="add">add</button>
+  <button onclick="rr(this)" action="delete">delete</button>
+  <button onclick="rr(this)" action="add">add</button>
 #+END_SRC
-For both examples, pressing delete will generate the query string: ~name1=value1&name2=value2&action=delete~ and pressing add will generate the query string: ~name1=value1&name2=value2&action=add~.
+For both examples, pressing delete will generate the query string: ~name1=value1&name2=value2&delete=t~ and pressing add will generate the query string: ~name1=value1&name2=value2&add=t~.
 
 Because the whole page acts like a form, the form tag becomes implicit and doesn't need to be written.
 The big *disadvantage* to the traditional approach is that the page must be totally refreshed and re-rendered when the form is submitted; this is not the case with ISSR.
@@ -53,7 +53,7 @@ The add button adds the next number to the end of the list:
       x += 1; // variable manipulation
   }
 #+END_SRC
-** Example With ISSR
+** Trivial Example With ISSR
 Same functionality as the previous example, but using [[https://github.com/interactive-ssr/hunchenissr][Hunchenissr]]:
 #+BEGIN_SRC html
   <ul>
