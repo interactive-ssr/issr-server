@@ -160,7 +160,7 @@ computeArgs = async () => {
       data = {}
   for (let element of elements) {
     let name = attr(element, "name")
-    if (element.disable) {
+    if (element.disable || element.value == null) {
       continue
     }
     let value = await getValue(element)
