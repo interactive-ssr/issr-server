@@ -4,4 +4,4 @@ store=$(guix pack -f tarball \
              -S /share=share \
              bash \
              -e '(load "guix.scm")')
-cp $store ./issr-server.tar.gz
+cp --remove-destination $store ./issr-server.tar.gz

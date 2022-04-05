@@ -4,4 +4,4 @@ store=$(guix pack -f docker \
              -S /share=share \
              bash \
              -e '(load "guix.scm")')
-cp $store ./issr-server-docker.tar.gz
+cp --remove-destination $store ./issr-server-docker.tar.gz
