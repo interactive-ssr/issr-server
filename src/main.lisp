@@ -121,7 +121,11 @@
         (handler-case (stop)
           (sb-sys:interactive-interrupt ()
             (continue)))
-        (uiop:quit)))))
+        (uiop:quit))
+      (t (condition)
+        (format *error-output*
+                "Unknown top level error: ~A.~%"
+                condition)))))
 
 (defun stop ()
   (yxorp:stop)
